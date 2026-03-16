@@ -49,7 +49,10 @@ make test
 
 -   `main.go`: The main entry point of the application.
 -   `cmd/`: Contains all the command-line interface logic, using the `cobra` library. Each command and subcommand has its own file.
--   `internal/config/`: Handles loading and saving the configuration file.
+    -   `root.go`: The root command. Detects the operational mode (`SCAT_MODE`) at startup and resolves the configuration (from file or environment variables) once, storing it in `appcontext.Context`. Individual commands consume this pre-resolved config rather than performing their own file I/O.
+    -   `providers.go`: The provider factory (`GetProvider`) and shared helpers including `requireCLIMode`, which guards commands unavailable in server mode.
+-   `internal/appcontext/`: Defines `Context`, the application-wide settings struct passed through cobra's context. It holds the resolved `*config.Config` alongside flags like `Debug`, `Silent`, and `ServerMode`.
+-   `internal/config/`: Handles loading and saving the configuration file, plus `DetectServerMode` (reads `SCAT_MODE`) and `BuildConfigFromEnv` (constructs a virtual `*Config` from environment variables for server mode).
 -   `internal/provider/`: Defines the `provider.Interface` and contains the specific implementations for different services.
     -   `provider.go`: Defines the core `Interface` that all providers must implement.
     -   `types.go`: Defines shared data structures used in the provider interfaces (e.g., `PostMessageOptions`).

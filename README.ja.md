@@ -110,7 +110,7 @@ make build
 
 | フラグ             | 説明                                           |
 | ------------------ | ---------------------------------------------- |
-| `--config <path>`  | 設定ファイルの代替パスを指定します。             |
+| `--config <path>`  | 設定ファイルの代替パスを指定します。サーバーモードでは使用できません。 |
 | `--profile <name>` | コマンドの実行に特定のプロファイルを使用します。 |
 | `--debug`          | 詳細なデバッグログを有効にします。               |
 | `--silent`         | 成功メッセージを抑制します。                   |
@@ -182,6 +182,63 @@ make build
 | コマンド             | 説明                                           |
 | ------------------- | ---------------------------------------------- |
 | `config init`       | 新しいデフォルト設定ファイルを作成します。       |
+
+---
+
+## サーバーモード（コンテナ / CI デプロイ）
+
+サーバーサイドやコンテナ化された環境向けに、`scat` は**サーバーモード**をサポートしています。このモードでは、設定ファイルを使用せず、すべての設定を環境変数から読み込みます。
+
+### サーバーモードの有効化
+
+`SCAT_MODE=server` 環境変数を設定します。プロファイルの設定は以下の環境変数で指定します:
+
+| 変数 | 必須 | 説明 |
+| --- | --- | --- |
+| `SCAT_MODE` | はい | `server` に設定するとサーバーモードが有効になります。 |
+| `SCAT_PROVIDER` | はい | プロバイダ名 (例: `slack`)。 |
+| `SCAT_TOKEN` | はい | 認証トークン。 |
+| `SCAT_CHANNEL` | いいえ | デフォルトの送信先チャンネル。 |
+| `SCAT_USERNAME` | いいえ | デフォルトの表示名。 |
+
+### 使用例
+
+```bash
+export SCAT_MODE=server
+export SCAT_PROVIDER=slack
+export SCAT_TOKEN=xoxb-xxxxxxxxxxxx
+export SCAT_CHANNEL="#deploy-notify"
+
+echo "Deployed v1.2.0" | scat post
+```
+
+### Kubernetes での使用例
+
+Kubernetes Secret からトークンを注入することで、設定ファイルもボリュームマウントも不要です:
+
+```yaml
+env:
+  - name: SCAT_MODE
+    value: "server"
+  - name: SCAT_PROVIDER
+    value: "slack"
+  - name: SCAT_CHANNEL
+    value: "#alerts"
+  - name: SCAT_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: slack-credentials
+        key: token
+```
+
+### サーバーモードでの制約
+
+サーバーモードでは以下の操作は利用できず、エラーが返されます:
+
+- `--config` フラグ（設定ファイルは完全に無視されます）
+- `--profile` フラグ（環境変数で設定されたプロファイルのみ使用されます）
+- すべての `profile` サブコマンド（`add`, `use`, `list`, `set`, `remove`）
+- `config init`
 
 ---
 

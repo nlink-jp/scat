@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/magifd2/scat/internal/appcontext"
-	"github.com/magifd2/scat/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -17,17 +15,12 @@ func newProfileListCmd() *cobra.Command {
 		Long:  `Lists all saved profiles and indicates which one is currently active.`, 
 		RunE: func(cmd *cobra.Command, args []string) error {
 			appCtx := cmd.Context().Value(appcontext.CtxKey).(appcontext.Context)
-			configPath, err := config.GetConfigPath(appCtx.ConfigPath)
-			if err != nil {
-				return fmt.Errorf("failed to get config path: %w", err)
+			if err := requireCLIMode(appCtx); err != nil {
+				return err
 			}
-
-			cfg, err := config.Load(configPath)
-			if err != nil {
-				if os.IsNotExist(err) {
-					return fmt.Errorf("configuration file not found. Please run 'scat config init' to create a default configuration")
-				}
-				return fmt.Errorf("error loading config: %w", err)
+			cfg := appCtx.Config
+			if cfg == nil {
+				return fmt.Errorf("configuration file not found. Please run 'scat config init' to create a default configuration")
 			}
 
 			// Note: This output goes to stdout, not stderr, for easier parsing.

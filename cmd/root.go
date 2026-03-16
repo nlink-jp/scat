@@ -3,8 +3,11 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/magifd2/scat/internal/appcontext"
+	"github.com/magifd2/scat/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +34,38 @@ Features:
 			noOp, _ := cmd.Flags().GetBool("noop")
 			silent, _ := cmd.Flags().GetBool("silent")
 			configPath, _ := cmd.Flags().GetString("config")
-			appCtx := appcontext.NewContext(debug, noOp, silent, configPath)
+
+			serverMode, err := config.DetectServerMode()
+			if err != nil {
+				return err
+			}
+
+			var cfg *config.Config
+
+			if serverMode {
+				if configPath != "" {
+					return fmt.Errorf("--config flag cannot be used in server mode (SCAT_MODE=server)")
+				}
+				cfg, err = config.BuildConfigFromEnv()
+				if err != nil {
+					return err
+				}
+			} else {
+				// CLI mode: load config file. Not-found is not an error here;
+				// commands that require a config will check for cfg == nil.
+				resolvedPath, pathErr := config.GetConfigPath(configPath)
+				if pathErr != nil {
+					return fmt.Errorf("failed to get config path: %w", pathErr)
+				}
+				configPath = resolvedPath
+				cfg, err = config.Load(configPath)
+				if err != nil && !os.IsNotExist(err) {
+					return fmt.Errorf("failed to load config: %w", err)
+				}
+				// cfg remains nil if the file does not exist
+			}
+
+			appCtx := appcontext.NewContext(debug, noOp, silent, configPath, serverMode, cfg)
 			cmd.SetContext(context.WithValue(cmd.Context(), appcontext.CtxKey, appCtx))
 			return nil
 		},

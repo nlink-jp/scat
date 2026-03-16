@@ -2,9 +2,59 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
+
+const modeEnvVar = "SCAT_MODE"
+
+// DetectServerMode returns true when SCAT_MODE=server is set.
+// Returns an error if SCAT_MODE is set to an unrecognized value.
+func DetectServerMode() (bool, error) {
+	val := os.Getenv(modeEnvVar)
+	switch val {
+	case "":
+		return false, nil
+	case "server":
+		return true, nil
+	default:
+		return false, fmt.Errorf("invalid SCAT_MODE value %q: must be \"server\" or unset", val)
+	}
+}
+
+// BuildConfigFromEnv constructs a virtual Config from environment variables for server mode.
+// SCAT_PROVIDER and SCAT_TOKEN are required; SCAT_CHANNEL and SCAT_USERNAME are optional.
+// The resulting Config has a single profile named "server".
+func BuildConfigFromEnv() (*Config, error) {
+	p := os.Getenv("SCAT_PROVIDER")
+	t := os.Getenv("SCAT_TOKEN")
+
+	var missing []string
+	if p == "" {
+		missing = append(missing, "SCAT_PROVIDER")
+	}
+	if t == "" {
+		missing = append(missing, "SCAT_TOKEN")
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("server mode requires environment variables: %s", strings.Join(missing, ", "))
+	}
+
+	return &Config{
+		CurrentProfile: "server",
+		Profiles: map[string]Profile{
+			"server": {
+				Provider: p,
+				Token:    t,
+				Channel:  os.Getenv("SCAT_CHANNEL"),
+				Username: os.Getenv("SCAT_USERNAME"),
+				Limits:   NewDefaultLimits(),
+			},
+		},
+	}, nil
+}
 
 const (
 	configDir  = ".config"

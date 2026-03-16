@@ -25,6 +25,8 @@ func TestNewContext(t *testing.T) {
 				NoOp:       false,
 				Silent:     false,
 				ConfigPath: "",
+				ServerMode: false,
+				Config:     nil,
 			},
 		},
 		{
@@ -38,6 +40,8 @@ func TestNewContext(t *testing.T) {
 				NoOp:       true,
 				Silent:     true,
 				ConfigPath: "/tmp/config.json",
+				ServerMode: false,
+				Config:     nil,
 			},
 		},
 		{
@@ -51,13 +55,15 @@ func TestNewContext(t *testing.T) {
 				NoOp:       false,
 				Silent:     true,
 				ConfigPath: "/path/to/config",
+				ServerMode: false,
+				Config:     nil,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewContext(tt.debug, tt.noOp, tt.silent, tt.configPath)
+			got := NewContext(tt.debug, tt.noOp, tt.silent, tt.configPath, false, nil)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewContext() = %v, want %v", got, tt.want)
 			}

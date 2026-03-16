@@ -122,7 +122,7 @@ Exports message history from a channel to a structured JSON file or stdout. It f
 
 | Flag      | Description                                      |
 | --------- | ------------------------------------------------ |
-| `--config <path>` | Specify an alternative path for the configuration file. |
+| `--config <path>` | Specify an alternative path for the configuration file. Not available in server mode. |
 | `--profile <name>` | Use a specific profile for the command.          |
 | `--debug`   | Enable verbose debug logging.                    |
 | `--silent`  | Suppress success messages.                       |
@@ -196,6 +196,63 @@ Exports message history from a channel to a structured JSON file or stdout. It f
 | Command             | Description                                      |
 | ------------------- | ------------------------------------------------ |
 | `config init`       | Creates a new default configuration file.        |
+
+---
+
+## Server Mode (Container / CI Deployment)
+
+For server-side and containerized deployments, `scat` supports a **server mode** that reads all configuration from environment variables, eliminating the need for a config file on disk.
+
+### Enabling Server Mode
+
+Set the `SCAT_MODE=server` environment variable. All profile settings are then provided via environment variables:
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `SCAT_MODE` | yes | Set to `server` to enable server mode. |
+| `SCAT_PROVIDER` | yes | Provider name (e.g., `slack`). |
+| `SCAT_TOKEN` | yes | Authentication token. |
+| `SCAT_CHANNEL` | no | Default destination channel. |
+| `SCAT_USERNAME` | no | Default display name. |
+
+### Example
+
+```bash
+export SCAT_MODE=server
+export SCAT_PROVIDER=slack
+export SCAT_TOKEN=xoxb-xxxxxxxxxxxx
+export SCAT_CHANNEL="#deploy-notify"
+
+echo "Deployed v1.2.0" | scat post
+```
+
+### Kubernetes Example
+
+Inject the token from a Kubernetes Secret — no config file or volume mount required:
+
+```yaml
+env:
+  - name: SCAT_MODE
+    value: "server"
+  - name: SCAT_PROVIDER
+    value: "slack"
+  - name: SCAT_CHANNEL
+    value: "#alerts"
+  - name: SCAT_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: slack-credentials
+        key: token
+```
+
+### Restrictions in Server Mode
+
+The following are not available in server mode and will return an error:
+
+- `--config` flag (config file is ignored entirely)
+- `--profile` flag (only the env-var profile is used)
+- All `profile` subcommands (`add`, `use`, `list`, `set`, `remove`)
+- `config init`
 
 ---
 

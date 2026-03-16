@@ -62,7 +62,7 @@ func TestCapabilities(t *testing.T) {
 }
 
 func TestPostMessage(t *testing.T) {
-	ctx := appcontext.NewContext(false, false, false, "")
+	ctx := appcontext.NewContext(false, false, false, "", false, nil)
 	profile := config.Profile{Channel: "#mock-channel"}
 	p, _ := NewProvider(profile, ctx)
 
@@ -87,7 +87,7 @@ func TestPostMessage(t *testing.T) {
 }
 
 func TestPostMessage_WithTargetChannel(t *testing.T) {
-	ctx := appcontext.NewContext(false, false, false, "")
+	ctx := appcontext.NewContext(false, false, false, "", false, nil)
 	profile := config.Profile{Channel: "#default-channel"}
 	p, _ := NewProvider(profile, ctx)
 
@@ -106,7 +106,7 @@ func TestPostMessage_WithTargetChannel(t *testing.T) {
 }
 
 func TestPostMessage_Silent(t *testing.T) {
-	ctx := appcontext.NewContext(false, false, true, "") // Silent = true
+	ctx := appcontext.NewContext(false, false, true, "", false, nil) // Silent = true
 	profile := config.Profile{Channel: "#mock-channel"}
 	p, _ := NewProvider(profile, ctx)
 
@@ -125,7 +125,7 @@ func TestPostMessage_Silent(t *testing.T) {
 }
 
 func TestPostMessage_Debug(t *testing.T) {
-	ctx := appcontext.NewContext(true, false, false, "") // Debug = true
+	ctx := appcontext.NewContext(true, false, false, "", false, nil) // Debug = true
 	profile := config.Profile{Channel: "#mock-channel"}
 	p, _ := NewProvider(profile, ctx)
 
@@ -144,7 +144,7 @@ func TestPostMessage_Debug(t *testing.T) {
 }
 
 func TestPostMessage_WithBlocks(t *testing.T) {
-	ctx := appcontext.NewContext(false, false, false, "")
+	ctx := appcontext.NewContext(false, false, false, "", false, nil)
 	profile := config.Profile{Channel: "#mock-channel"}
 	p, _ := NewProvider(profile, ctx)
 
@@ -179,7 +179,7 @@ func TestListChannels(t *testing.T) {
 }
 
 func TestExportLog(t *testing.T) {
-	ctx := appcontext.NewContext(false, false, false, "")
+	ctx := appcontext.NewContext(false, false, false, "", false, nil)
 	p, _ := NewProvider(config.Profile{}, ctx)
 
 	opts := export.Options{ChannelName: "#test-channel"}

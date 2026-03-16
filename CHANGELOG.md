@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-03-16
+
+### Features
+
+- **Server Mode for container and CI deployments**: Added `SCAT_MODE=server` to run `scat` without a config file, reading all profile settings from environment variables (`SCAT_PROVIDER`, `SCAT_TOKEN`, `SCAT_CHANNEL`, `SCAT_USERNAME`). This enables secure token injection via Kubernetes Secrets or CI environment variables without storing tokens on disk.
+
+### Refactoring
+
+- **Centralized config loading**: The configuration file (or virtual config built from env vars) is now resolved once at startup in `PersistentPreRunE` and stored in `appcontext.Context`. Individual commands no longer perform their own file I/O for config loading.
+
+### Documentation
+
+- **README.md / README.ja.md**: Added "Server Mode" section with usage examples including a Kubernetes deployment example.
+
 ## [1.10.0] - 2025-08-20
 
 ### Features

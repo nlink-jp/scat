@@ -35,7 +35,7 @@ func (t *mockServerTransport) RoundTrip(req *http.Request) (*http.Response, erro
 // newTestProvider creates a provider configured to use the mock server.
 func newTestProvider(server *httptest.Server, channelName string) *Provider {
 	profile := config.Profile{Token: "test-token", Channel: channelName}
-	ctx := appcontext.NewContext(false, false, false, "")
+	ctx := appcontext.NewContext(false, false, false, "", false, nil)
 	serverURL, _ := url.Parse(server.URL)
 
 	// Create a custom http client with our transport that rewrites URLs.

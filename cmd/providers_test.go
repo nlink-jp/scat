@@ -11,7 +11,7 @@ import (
 
 func TestGetProvider_Success(t *testing.T) {
 	testCases := []string{"slack", "mock", "test"}
-	ctx := appcontext.NewContext(false, false, false, "")
+	ctx := appcontext.NewContext(false, false, false, "", false, nil)
 
 	for _, providerName := range testCases {
 		t.Run(providerName, func(t *testing.T) {
@@ -29,7 +29,7 @@ func TestGetProvider_Success(t *testing.T) {
 }
 
 func TestGetProvider_UnknownProvider(t *testing.T) {
-	ctx := appcontext.NewContext(false, false, false, "")
+	ctx := appcontext.NewContext(false, false, false, "", false, nil)
 	p := config.Profile{Provider: "unknown-provider"}
 
 	prov, err := GetProvider(ctx, p)

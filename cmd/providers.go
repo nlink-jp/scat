@@ -29,3 +29,12 @@ func GetProvider(ctx appcontext.Context, p config.Profile) (provider.Interface, 
 	}
 	return factory(p, ctx)
 }
+
+// requireCLIMode returns an error if the app is running in server mode.
+// Use this to guard commands that manage the config file (profile subcommands, config init).
+func requireCLIMode(appCtx appcontext.Context) error {
+	if appCtx.ServerMode {
+		return fmt.Errorf("this command is not available in server mode (SCAT_MODE=server)")
+	}
+	return nil
+}

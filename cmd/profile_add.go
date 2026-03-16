@@ -18,20 +18,15 @@ func newProfileAddCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			appCtx := cmd.Context().Value(appcontext.CtxKey).(appcontext.Context)
-			configPath, err := config.GetConfigPath(appCtx.ConfigPath)
-			if err != nil {
-				return fmt.Errorf("failed to get config path: %w", err)
+			if err := requireCLIMode(appCtx); err != nil {
+				return err
+			}
+			cfg := appCtx.Config
+			if cfg == nil {
+				return fmt.Errorf("configuration file not found. Please run 'scat config init' to create a default configuration before adding a profile")
 			}
 
 			profileName := args[0]
-
-			cfg, err := config.Load(configPath)
-			if err != nil {
-				if os.IsNotExist(err) {
-					return fmt.Errorf("configuration file not found. Please run 'scat config init' to create a default configuration before adding a profile")
-				}
-				return fmt.Errorf("Error loading config: %w", err)
-			}
 
 			if _, ok := cfg.Profiles[profileName]; ok {
 				return fmt.Errorf("Error: Profile '%s' already exists", profileName)
@@ -62,7 +57,7 @@ func newProfileAddCmd() *cobra.Command {
 
 			cfg.Profiles[profileName] = newProfile
 
-			if err := cfg.Save(configPath); err != nil {
+			if err := cfg.Save(appCtx.ConfigPath); err != nil {
 				return fmt.Errorf("Error saving config: %w", err)
 			}
 

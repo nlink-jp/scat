@@ -93,7 +93,7 @@ func TestPostMessage(t *testing.T) {
 }
 
 func TestPostMessage_WithBlocks(t *testing.T) {
-	ctx := appcontext.NewContext(false, false, false, "")
+	ctx := appcontext.NewContext(false, false, false, "", false, nil)
 	p, _ := NewProvider(config.Profile{}, ctx)
 
 	blocksJSON := []byte(`[{"type": "section", "text": {"type": "mrkdwn", "text": "Hello, Block Kit!"}}]`)

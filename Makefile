@@ -4,6 +4,14 @@ GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
 
+# Use $TMPDIR as the base for Go's cache and temp directories.
+# Evaluated once at parse time: creates the directory if it doesn't exist,
+# then verifies it's usable. Falls back to /tmp on failure.
+# ?= preserves any values already set in the caller's environment.
+_TMPBASE := $(shell mkdir -p "$(TMPDIR)" 2>/dev/null && echo "$(TMPDIR)" || echo "/tmp")
+export GOTMPDIR ?= $(_TMPBASE)
+export GOCACHE  ?= $(_TMPBASE)/go-build-cache
+
 # Project details
 BINARY_NAME=scat
 OUTPUT_DIR=bin
