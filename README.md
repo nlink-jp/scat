@@ -214,6 +214,8 @@ Set the `SCAT_MODE=server` environment variable. All profile settings are then p
 | `SCAT_TOKEN` | yes | Authentication token. |
 | `SCAT_CHANNEL` | no | Default destination channel. |
 | `SCAT_USERNAME` | no | Default display name. |
+| `SCAT_MAX_FILE_SIZE` | no | Max upload file size in bytes (default: 1073741824 = 1 GB). |
+| `SCAT_MAX_STDIN_SIZE` | no | Max stdin read size in bytes (default: 10485760 = 10 MB). |
 
 ### Example
 

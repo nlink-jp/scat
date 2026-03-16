@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -25,7 +26,8 @@ func DetectServerMode() (bool, error) {
 }
 
 // BuildConfigFromEnv constructs a virtual Config from environment variables for server mode.
-// SCAT_PROVIDER and SCAT_TOKEN are required; SCAT_CHANNEL and SCAT_USERNAME are optional.
+// SCAT_PROVIDER and SCAT_TOKEN are required; SCAT_CHANNEL, SCAT_USERNAME,
+// SCAT_MAX_FILE_SIZE, and SCAT_MAX_STDIN_SIZE are optional.
 // The resulting Config has a single profile named "server".
 func BuildConfigFromEnv() (*Config, error) {
 	p := os.Getenv("SCAT_PROVIDER")
@@ -42,6 +44,11 @@ func BuildConfigFromEnv() (*Config, error) {
 		return nil, fmt.Errorf("server mode requires environment variables: %s", strings.Join(missing, ", "))
 	}
 
+	limits, err := limitsFromEnv()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		CurrentProfile: "server",
 		Profiles: map[string]Profile{
@@ -50,10 +57,32 @@ func BuildConfigFromEnv() (*Config, error) {
 				Token:    t,
 				Channel:  os.Getenv("SCAT_CHANNEL"),
 				Username: os.Getenv("SCAT_USERNAME"),
-				Limits:   NewDefaultLimits(),
+				Limits:   limits,
 			},
 		},
 	}, nil
+}
+
+// limitsFromEnv reads SCAT_MAX_FILE_SIZE and SCAT_MAX_STDIN_SIZE, falling back to defaults.
+func limitsFromEnv() (Limits, error) {
+	defaults := NewDefaultLimits()
+	limits := defaults
+
+	if v := os.Getenv("SCAT_MAX_FILE_SIZE"); v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || n < 0 {
+			return Limits{}, fmt.Errorf("invalid SCAT_MAX_FILE_SIZE value %q: must be a non-negative integer (bytes)", v)
+		}
+		limits.MaxFileSizeBytes = n
+	}
+	if v := os.Getenv("SCAT_MAX_STDIN_SIZE"); v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || n < 0 {
+			return Limits{}, fmt.Errorf("invalid SCAT_MAX_STDIN_SIZE value %q: must be a non-negative integer (bytes)", v)
+		}
+		limits.MaxStdinSizeBytes = n
+	}
+	return limits, nil
 }
 
 const (
@@ -74,7 +103,7 @@ type Profile struct {
 	Channel  string `json:"channel,omitempty"`  // Used by "slack" provider
 	Token    string `json:"token,omitempty"`
 	Username string `json:"username,omitempty"`
-	Limits   Limits `json:"limits,omitempty"`
+	Limits   Limits `json:"limits"`
 }
 
 // Limits defines the size limits for inputs.

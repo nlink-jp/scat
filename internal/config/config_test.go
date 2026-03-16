@@ -76,6 +76,119 @@ func TestLoad_InvalidJson(t *testing.T) {
 	}
 }
 
+func TestBuildConfigFromEnv(t *testing.T) {
+	defaults := NewDefaultLimits()
+
+	tests := []struct {
+		name    string
+		env     map[string]string
+		wantErr bool
+		check   func(*testing.T, *Config)
+	}{
+		{
+			name:    "missing required vars",
+			env:     map[string]string{},
+			wantErr: true,
+		},
+		{
+			name:    "missing SCAT_TOKEN",
+			env:     map[string]string{"SCAT_PROVIDER": "slack"},
+			wantErr: true,
+		},
+		{
+			name: "minimal valid",
+			env:  map[string]string{"SCAT_PROVIDER": "slack", "SCAT_TOKEN": "xoxb-test"},
+			check: func(t *testing.T, cfg *Config) {
+				p := cfg.Profiles["server"]
+				if p.Provider != "slack" {
+					t.Errorf("provider = %q, want slack", p.Provider)
+				}
+				if p.Token != "xoxb-test" {
+					t.Errorf("token = %q, want xoxb-test", p.Token)
+				}
+				if p.Limits.MaxFileSizeBytes != defaults.MaxFileSizeBytes {
+					t.Errorf("MaxFileSizeBytes = %d, want %d", p.Limits.MaxFileSizeBytes, defaults.MaxFileSizeBytes)
+				}
+				if p.Limits.MaxStdinSizeBytes != defaults.MaxStdinSizeBytes {
+					t.Errorf("MaxStdinSizeBytes = %d, want %d", p.Limits.MaxStdinSizeBytes, defaults.MaxStdinSizeBytes)
+				}
+			},
+		},
+		{
+			name: "custom limits",
+			env: map[string]string{
+				"SCAT_PROVIDER":      "slack",
+				"SCAT_TOKEN":         "xoxb-test",
+				"SCAT_MAX_FILE_SIZE": "5242880",
+				"SCAT_MAX_STDIN_SIZE": "1048576",
+			},
+			check: func(t *testing.T, cfg *Config) {
+				p := cfg.Profiles["server"]
+				if p.Limits.MaxFileSizeBytes != 5242880 {
+					t.Errorf("MaxFileSizeBytes = %d, want 5242880", p.Limits.MaxFileSizeBytes)
+				}
+				if p.Limits.MaxStdinSizeBytes != 1048576 {
+					t.Errorf("MaxStdinSizeBytes = %d, want 1048576", p.Limits.MaxStdinSizeBytes)
+				}
+			},
+		},
+		{
+			name:    "invalid SCAT_MAX_FILE_SIZE",
+			env:     map[string]string{"SCAT_PROVIDER": "slack", "SCAT_TOKEN": "t", "SCAT_MAX_FILE_SIZE": "abc"},
+			wantErr: true,
+		},
+		{
+			name:    "negative SCAT_MAX_STDIN_SIZE",
+			env:     map[string]string{"SCAT_PROVIDER": "slack", "SCAT_TOKEN": "t", "SCAT_MAX_STDIN_SIZE": "-1"},
+			wantErr: true,
+		},
+		{
+			name: "optional fields",
+			env: map[string]string{
+				"SCAT_PROVIDER": "slack",
+				"SCAT_TOKEN":    "xoxb-test",
+				"SCAT_CHANNEL":  "#alerts",
+				"SCAT_USERNAME": "bot",
+			},
+			check: func(t *testing.T, cfg *Config) {
+				p := cfg.Profiles["server"]
+				if p.Channel != "#alerts" {
+					t.Errorf("channel = %q, want #alerts", p.Channel)
+				}
+				if p.Username != "bot" {
+					t.Errorf("username = %q, want bot", p.Username)
+				}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Clear relevant env vars, set test values
+			for _, k := range []string{"SCAT_PROVIDER", "SCAT_TOKEN", "SCAT_CHANNEL", "SCAT_USERNAME", "SCAT_MAX_FILE_SIZE", "SCAT_MAX_STDIN_SIZE"} {
+				t.Setenv(k, "")
+			}
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+
+			cfg, err := BuildConfigFromEnv()
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.check != nil {
+				tc.check(t, cfg)
+			}
+		})
+	}
+}
+
 func TestProfileManagement_DirectManipulation(t *testing.T) {
 	cfg := NewDefaultConfig()
 
