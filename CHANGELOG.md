@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-03-16
+
+### Features
+
+- **Configurable DoS protection limits in server mode**: Added `SCAT_MAX_FILE_SIZE` and `SCAT_MAX_STDIN_SIZE` environment variables to customize upload and stdin size limits when running in server mode (`SCAT_MODE=server`). Defaults remain 1 GB and 10 MB respectively. Invalid values (non-numeric or negative) return an error at startup.
+
+### Bug Fixes
+
+- Fixed `omitempty` tag on the `Limits` struct field in `Profile`, which had no effect since `encoding/json` never treats a zero-value struct as empty.
+
+### Tests
+
+- Added command-level integration tests for server mode covering: mode validation, `post` success, missing required env vars, `--config` flag rejection, `profile`/`config init` command blocking, custom limits, and invalid limit values.
+
 ## [1.11.0] - 2026-03-16
 
 ### Features
