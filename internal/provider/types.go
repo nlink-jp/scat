@@ -63,6 +63,24 @@ type CreateChannelOptions struct {
 	Invitees    []string
 }
 
+// InviteToChannelOptions defines the parameters for an InviteToChannel call.
+type InviteToChannelOptions struct {
+	Channel  string   // Channel name or ID
+	Invitees []string // User names, user IDs, or user group handles
+}
+
+// Channel represents a channel with its name and ID.
+type Channel struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// UserInfo represents a user with their name and ID.
+type UserInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 // --- Response Structs ---
 
 // ConversationHistoryResponse represents the response from a conversation history API call.

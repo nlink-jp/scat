@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/magifd2/scat/internal/provider"
 	_ "github.com/magifd2/scat/internal/provider/testprovider"
 )
 
@@ -15,19 +16,18 @@ func TestChannelList_Default(t *testing.T) {
 	rootCmd := newRootCmd()
 	rootCmd.AddCommand(newChannelCmd())
 
-	// Execute the command
 	stdout, stderr, err := testExecuteCommandAndCapture(rootCmd, "--config", configPath, "channel", "list")
 	if err != nil {
 		t.Fatalf("testExecuteCommandAndCapture returned an error: %v\nStderr: %s", err, stderr)
 	}
 
-	// Check the output
-	expectedOutput := "- #test-channel-1\n  - #test-channel-2"
-	if !strings.Contains(stdout, expectedOutput) {
-		t.Errorf("Expected stdout to contain '%s', got: '%s'", expectedOutput, stdout)
+	// Table output should include header and both channel names and IDs
+	for _, expected := range []string{"NAME", "ID", "test-channel-1", "C0000000001", "test-channel-2", "C0000000002"} {
+		if !strings.Contains(stdout, expected) {
+			t.Errorf("Expected stdout to contain '%s', got: '%s'", expected, stdout)
+		}
 	}
 
-	// Check stderr for the profile header
 	expectedStderr := "Channels for profile: test"
 	if !strings.Contains(stderr, expectedStderr) {
 		t.Errorf("Expected stderr to contain '%s', got: '%s'", expectedStderr, stderr)
@@ -41,14 +41,12 @@ func TestChannelList_JSON(t *testing.T) {
 	rootCmd := newRootCmd()
 	rootCmd.AddCommand(newChannelCmd())
 
-	// Execute the command
 	stdout, _, err := testExecuteCommandAndCapture(rootCmd, "--config", configPath, "channel", "list", "--json")
 	if err != nil {
 		t.Fatalf("testExecuteCommandAndCapture returned an error: %v", err)
 	}
 
-	// Check the JSON output
-	var result map[string][]string
+	var result map[string][]provider.Channel
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("Failed to unmarshal json output: %v", err)
 	}
@@ -61,7 +59,14 @@ func TestChannelList_JSON(t *testing.T) {
 		t.Errorf("Expected 2 channels for test profile, got %d", len(result["test"]))
 	}
 
-	if result["test"][0] != "#test-channel-1" {
-		t.Errorf("Unexpected channel name: got %s, want #test-channel-1", result["test"][0])
+	found := false
+	for _, ch := range result["test"] {
+		if ch.Name == "test-channel-1" && ch.ID == "C0000000001" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected channel {test-channel-1, C0000000001} in results, got: %+v", result["test"])
 	}
 }

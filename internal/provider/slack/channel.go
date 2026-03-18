@@ -54,18 +54,60 @@ func (p *Provider) getCachedChannelID(name string) (string, error) {
 	return "", fmt.Errorf("not found in cache")
 }
 
-func (p *Provider) ListChannels() ([]string, error) {
+func (p *Provider) ListChannels() ([]provider.Channel, error) {
 	// Ensure the cache is populated before listing.
 	if p.channelIDCache == nil {
 		if err := p.populateChannelCache(); err != nil {
 			return nil, err
 		}
 	}
-	var channelNames []string
-	for name := range p.channelIDCache {
-		channelNames = append(channelNames, "#"+name)
+	var channels []provider.Channel
+	for name, id := range p.channelIDCache {
+		channels = append(channels, provider.Channel{ID: id, Name: name})
 	}
-	return channelNames, nil
+	return channels, nil
+}
+
+// InviteToChannel invites users or user groups to an existing channel.
+func (p *Provider) InviteToChannel(opts provider.InviteToChannelOptions) error {
+	channelID, err := p.ResolveChannelID(opts.Channel)
+	if err != nil {
+		return fmt.Errorf("failed to resolve channel: %w", err)
+	}
+
+	userIDsToInvite := make(map[string]struct{})
+	for _, invitee := range opts.Invitees {
+		userID, err := p.ResolveUserID(invitee)
+		if err == nil {
+			userIDsToInvite[userID] = struct{}{}
+			continue
+		}
+
+		userGroupID, err := p.ResolveUserGroupID(invitee)
+		if err == nil {
+			userGroupUserIDs, err := p.getUserGroupUsers(userGroupID)
+			if err != nil {
+				return fmt.Errorf("failed to get users for user group '%s': %w", invitee, err)
+			}
+			for _, ugUserID := range userGroupUserIDs {
+				userIDsToInvite[ugUserID] = struct{}{}
+			}
+			continue
+		}
+
+		return fmt.Errorf("could not resolve '%s' as a user or user group", invitee)
+	}
+
+	var finalUserIDs []string
+	for id := range userIDsToInvite {
+		finalUserIDs = append(finalUserIDs, id)
+	}
+
+	if len(finalUserIDs) == 0 {
+		return nil
+	}
+
+	return p.inviteUsersToChannel(channelID, finalUserIDs)
 }
 
 // CreateChannel creates a new channel.

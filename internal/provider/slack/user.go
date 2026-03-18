@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/magifd2/scat/internal/provider"
 )
 
 // populateUserCache fetches all users and populates the userIDCache.
@@ -52,6 +54,19 @@ func (p *Provider) ResolveUserID(userName string) (string, error) {
 	}
 
 	return id, nil
+}
+
+// ListUsers returns all non-bot, non-deleted users in the workspace.
+func (p *Provider) ListUsers() ([]provider.UserInfo, error) {
+	users, err := p.getUsers()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]provider.UserInfo, 0, len(users))
+	for _, u := range users {
+		result = append(result, provider.UserInfo{ID: u.ID, Name: u.Name})
+	}
+	return result, nil
 }
 
 // getUsers fetches all non-bot, non-deleted users from the workspace.

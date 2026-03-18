@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-03-18
+
+### Features
+
+- **`channel invite` command**: New subcommand to invite one or more users or user groups to an existing channel. Users can be specified by display name or `@`-prefixed name; user groups by handle. Resolves names to IDs internally.
+- **`user list` command**: New `scat user` command group with a `list` subcommand that lists all workspace users with their display names and IDs. Supports `--json` for structured output.
+- **`channel list` now includes IDs**: The output of `scat channel list` has been updated to display both channel name and channel ID in a table format. JSON output now returns `{"name": "...", "id": "..."}` objects instead of plain strings.
+
+### Provider Interface
+
+- `ListChannels()` now returns `[]provider.Channel` (with `ID` and `Name` fields) instead of `[]string`.
+- Added `ListUsers() ([]provider.UserInfo, error)` to the provider interface.
+- Added `InviteToChannel(opts InviteToChannelOptions) error` to the provider interface.
+- Added `CanListUsers` and `CanInviteToChannel` capability flags.
+
+### Documentation
+
+- **README.md / README.ja.md**: Added documentation for `channel invite`, `user list`, `channel list --json`, `channel create` flags, `profile add` flags, and `profile set` keys. Fixed `--profile` flag placement (per-command, not global). Added DM usage examples to Japanese README.
+
 ## [1.12.0] - 2026-03-16
 
 ### Features

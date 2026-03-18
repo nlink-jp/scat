@@ -12,12 +12,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newChannelListCmd creates the command for listing channels.
-func newChannelListCmd() *cobra.Command {
+// newUserListCmd creates the command for listing users.
+func newUserListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List available channels for supported providers",
-		Long:  `Iterates through all configured profiles and lists the available channels for each profile whose provider supports this feature.`,
+		Short: "List users for supported providers",
+		Long:  `Iterates through all configured profiles and lists the users for each profile whose provider supports this feature.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			appCtx := cmd.Context().Value(appcontext.CtxKey).(appcontext.Context)
 
@@ -27,7 +27,7 @@ func newChannelListCmd() *cobra.Command {
 			}
 
 			jsonOutput, _ := cmd.Flags().GetBool("json")
-			results := make(map[string][]provider.Channel)
+			results := make(map[string][]provider.UserInfo)
 
 			for profileName, profile := range cfg.Profiles {
 				prov, err := GetProvider(appCtx, profile)
@@ -37,28 +37,28 @@ func newChannelListCmd() *cobra.Command {
 				}
 
 				caps := prov.Capabilities()
-				if !caps.CanListChannels {
+				if !caps.CanListUsers {
 					continue
 				}
 
-				channels, err := prov.ListChannels()
+				users, err := prov.ListUsers()
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: could not list channels for profile '%s': %v\n", profileName, err)
+					fmt.Fprintf(os.Stderr, "Warning: could not list users for profile '%s': %v\n", profileName, err)
 					continue
 				}
 
-				sort.Slice(channels, func(i, j int) bool {
-					return channels[i].Name < channels[j].Name
+				sort.Slice(users, func(i, j int) bool {
+					return users[i].Name < users[j].Name
 				})
 
 				if jsonOutput {
-					results[profileName] = channels
+					results[profileName] = users
 				} else {
-					fmt.Fprintf(os.Stderr, "Channels for profile: %s\n", profileName)
+					fmt.Fprintf(os.Stderr, "Users for profile: %s\n", profileName)
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 					fmt.Fprintln(w, "NAME\tID")
-					for _, ch := range channels {
-						fmt.Fprintf(w, "%s\t%s\n", ch.Name, ch.ID)
+					for _, u := range users {
+						fmt.Fprintf(w, "%s\t%s\n", u.Name, u.ID)
 					}
 					w.Flush()
 				}
@@ -76,7 +76,7 @@ func newChannelListCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("json", false, "Output the list of channels in JSON format")
+	cmd.Flags().Bool("json", false, "Output the list of users in JSON format")
 
 	return cmd
 }

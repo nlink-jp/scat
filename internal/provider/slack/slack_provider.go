@@ -54,11 +54,13 @@ func NewProvider(p config.Profile, ctx appcontext.Context) (provider.Interface, 
 // Capabilities returns the features supported by the Slack provider.
 func (p *Provider) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
-		CanListChannels:  true,
-		CanPostFile:      true,
-		CanUseIconEmoji:  true,
-		CanExportLogs:    true,
-		CanPostBlocks:    true,
-		CanCreateChannel: true,
+		CanListChannels:    true,
+		CanListUsers:       true,
+		CanPostFile:        true,
+		CanUseIconEmoji:    true,
+		CanExportLogs:      true,
+		CanPostBlocks:      true,
+		CanCreateChannel:   true,
+		CanInviteToChannel: true,
 	}
 }

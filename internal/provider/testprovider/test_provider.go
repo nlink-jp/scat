@@ -30,14 +30,15 @@ func NewProvider(p config.Profile, ctx appcontext.Context) (provider.Interface, 
 // Capabilities returns the features supported by the test provider.
 func (p *Provider) Capabilities() provider.Capabilities {
 	fmt.Fprintf(os.Stderr, "[TESTPROVIDER] Capabilities called\n")
-	// Default capabilities for a test provider
 	return provider.Capabilities{
-		CanListChannels:  true,
-		CanPostFile:      true,
-		CanUseIconEmoji:  true,
-		CanExportLogs:    true,
-		CanPostBlocks:    true,
-		CanCreateChannel: true,
+		CanListChannels:    true,
+		CanListUsers:       true,
+		CanPostFile:        true,
+		CanUseIconEmoji:    true,
+		CanExportLogs:      true,
+		CanPostBlocks:      true,
+		CanCreateChannel:   true,
+		CanInviteToChannel: true,
 	}
 }
 
@@ -84,9 +85,27 @@ func (p *Provider) PostFile(opts provider.PostFileOptions) error {
 }
 
 // ListChannels logs the call and returns dummy data.
-func (p *Provider) ListChannels() ([]string, error) {
+func (p *Provider) ListChannels() ([]provider.Channel, error) {
 	fmt.Fprintf(os.Stderr, "[TESTPROVIDER] ListChannels called\n")
-	return []string{"#test-channel-1", "#test-channel-2"}, nil
+	return []provider.Channel{
+		{ID: "C0000000001", Name: "test-channel-1"},
+		{ID: "C0000000002", Name: "test-channel-2"},
+	}, nil
+}
+
+// ListUsers logs the call and returns dummy data.
+func (p *Provider) ListUsers() ([]provider.UserInfo, error) {
+	fmt.Fprintf(os.Stderr, "[TESTPROVIDER] ListUsers called\n")
+	return []provider.UserInfo{
+		{ID: "U0000000001", Name: "test-user-1"},
+		{ID: "U0000000002", Name: "test-user-2"},
+	}, nil
+}
+
+// InviteToChannel logs the call.
+func (p *Provider) InviteToChannel(opts provider.InviteToChannelOptions) error {
+	fmt.Fprintf(os.Stderr, "[TESTPROVIDER] InviteToChannel called with opts: %+v\n", opts)
+	return nil
 }
 
 // ExportLog logs the export options and returns dummy data that reflects the options.

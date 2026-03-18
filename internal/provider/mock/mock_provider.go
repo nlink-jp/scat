@@ -25,12 +25,14 @@ func NewProvider(p config.Profile, ctx appcontext.Context) (provider.Interface, 
 // Capabilities returns the features supported by the mock provider.
 func (p *Provider) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
-		CanListChannels:  false,
-		CanPostFile:      true, // Mock can "handle" file posts
-		CanUseIconEmoji:  false,
-		CanExportLogs:    true, // Mock supports exporting for testing purposes
-		CanPostBlocks:    true, // New: Mock supports posting Block Kit messages
-		CanCreateChannel: true, // Mock supports creating channels
+		CanListChannels:    false,
+		CanListUsers:       false,
+		CanPostFile:        true,
+		CanUseIconEmoji:    false,
+		CanExportLogs:      true,
+		CanPostBlocks:      true,
+		CanCreateChannel:   true,
+		CanInviteToChannel: false,
 	}
 }
 
@@ -91,8 +93,18 @@ func (p *Provider) PostFile(opts provider.PostFileOptions) error {
 }
 
 // ListChannels returns an error as it's not supported.
-func (p *Provider) ListChannels() ([]string, error) {
+func (p *Provider) ListChannels() ([]provider.Channel, error) {
 	return nil, fmt.Errorf("ListChannels is not supported by the mock provider")
+}
+
+// ListUsers returns an error as it's not supported.
+func (p *Provider) ListUsers() ([]provider.UserInfo, error) {
+	return nil, fmt.Errorf("ListUsers is not supported by the mock provider")
+}
+
+// InviteToChannel returns an error as it's not supported.
+func (p *Provider) InviteToChannel(opts provider.InviteToChannelOptions) error {
+	return fmt.Errorf("InviteToChannel is not supported by the mock provider")
 }
 
 // ExportLog returns a dummy log for testing.

@@ -92,6 +92,7 @@ func Execute() error {
 	rootCmd.AddCommand(newUploadCmd())
 	rootCmd.AddCommand(newExportCmd())
 	rootCmd.AddCommand(newChannelCmd())
+	rootCmd.AddCommand(newUserCmd())
 
 	return rootCmd.Execute()
 }

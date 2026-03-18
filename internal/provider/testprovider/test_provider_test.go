@@ -120,18 +120,24 @@ func TestPostMessage_WithBlocks(t *testing.T) {
 
 func TestListChannels(t *testing.T) {
 	p, _ := NewProvider(config.Profile{}, appcontext.Context{})
-	var channels []string
 	var err error
 
 	output := captureStderr(func() {
+		var channels []provider.Channel
 		channels, err = p.ListChannels()
+		if err != nil {
+			return
+		}
+		if len(channels) == 0 {
+			t.Error("Expected non-empty channel list")
+		}
+		if channels[0].ID == "" || channels[0].Name == "" {
+			t.Errorf("Expected channel with ID and Name, got: %+v", channels[0])
+		}
 	})
 
 	if err != nil {
 		t.Fatalf("ListChannels() error = %v", err)
-	}
-	if len(channels) == 0 {
-		t.Error("Expected non-empty channel list")
 	}
 	if !strings.Contains(output, "[TESTPROVIDER] ListChannels called") {
 		t.Errorf("Expected output to contain ListChannels marker, got: %s", output)

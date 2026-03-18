@@ -13,6 +13,8 @@
 - **Upload files**: Upload files from a path or stdin.
 - **Stream content**: Continuously stream from stdin, posting messages periodically.
 - **Export channel logs**: Export message history from a channel to a structured JSON file or stdout.
+- **List channels and users**: List channels and users with their IDs in human-readable or JSON format.
+- **Invite users to channels**: Invite users or user groups to an existing channel.
 - **Profile management**: Configure multiple destinations and switch between them easily.
 - **Extensible providers**: Currently supports Slack and a mock provider for testing.
 
@@ -116,17 +118,42 @@ Exports message history from a channel to a structured JSON file or stdout. It f
 -   **Export log to stdout and download files to a specific directory**:
     `scat export log -c "#random" --output - --output-files "./attachments"`
 
+### Listing Channels and Users
+
+-   **List channels with their IDs (human-readable table)**:
+    `scat channel list`
+
+-   **List channels as JSON (for scripting)**:
+    `scat channel list --json`
+
+-   **List users with their IDs**:
+    `scat user list`
+
+-   **List users as JSON**:
+    `scat user list --json`
+
+### Inviting Users to a Channel
+
+-   **Invite a single user**:
+    `scat channel invite general alice`
+
+-   **Invite multiple users and a user group**:
+    `scat channel invite general alice bob @team-infra`
+
 ## Command Reference
 
 ### Global Flags
 
+These flags are available on the root `scat` command and apply to all subcommands.
+
 | Flag      | Description                                      |
 | --------- | ------------------------------------------------ |
 | `--config <path>` | Specify an alternative path for the configuration file. Not available in server mode. |
-| `--profile <name>` | Use a specific profile for the command.          |
 | `--debug`   | Enable verbose debug logging.                    |
 | `--silent`  | Suppress success messages.                       |
 | `--noop`    | Perform a dry run without sending content.       |
+
+> **Note**: Most commands also accept a `--profile <name>` / `-p` flag to override the active profile for that single invocation. See each command's table below.
 
 ### Main Commands
 
@@ -138,11 +165,13 @@ Exports message history from a channel to a structured JSON file or stdout. It f
 | `scat profile`  | Manages configuration profiles.                  |
 | `scat config`   | Manages the configuration file itself.           |
 | `scat channel`  | Manages channels for supported providers.        |
+| `scat user`     | Lists users for supported providers.             |
 
 ### `post` Command Flags
 
 | Flag          | Shorthand | Description                               |
 | ------------- | --------- | ----------------------------------------- |
+| `--profile`   | `-p`      | Use a specific profile for this command.  |
 | `--channel`   | `-c`      | Override destination channel (cannot be used with `--user`). |
 | `--user`      |           | Send a direct message to a user by ID or mention name. |
 | `--from-file` |           | Read message body from a file.            |
@@ -156,6 +185,7 @@ Exports message history from a channel to a structured JSON file or stdout. It f
 
 | Flag        | Shorthand | Description                                      |
 | ----------- | --------- | ------------------------------------------------ |
+| `--profile` | `-p`      | Use a specific profile for this command.         |
 | `--channel` | `-c`      | Override destination channel (cannot be used with `--user`). |
 | `--user`    |           | Send a direct message to a user by ID or mention name. |
 | `--file`    | `-f`      | **Required.** Path to the file, or `-` for stdin. |
@@ -167,10 +197,11 @@ Exports message history from a channel to a structured JSON file or stdout. It f
 
 | Flag            | Shorthand | Description                                      |
 | --------------- | --------- | ------------------------------------------------ |
+| `--profile`     | `-p`      | Use a specific profile for this command.         |
 | `--channel`     | `-c`      | **Required.** Channel to export from.            |
 | `--output`      |           | Output file path for the log. Use `-` for stdout (default). |
 | `--output-files`|           | Directory to save downloaded files. If set to `auto`, a directory is auto-generated. |
-| `--output-format` |         | Output format (`json` or `text`).                |
+| `--output-format` |         | Output format (`json` or `text`). Default is `json`. |
 | `--start-time`  |           | Start of time range (RFC3339 format).            |
 | `--end-time`    |           | End of time range (RFC3339 format).              |
 
@@ -184,12 +215,91 @@ Exports message history from a channel to a structured JSON file or stdout. It f
 | `set`      | Set a value in the current profile.              |
 | `remove`   | Remove a profile.                                |
 
+#### `profile add` Flags
+
+```bash
+scat profile add <profile-name> [flags]
+```
+
+You will be prompted to enter the authentication token securely.
+
+| Flag                          | Description                                          | Default |
+| ----------------------------- | ---------------------------------------------------- | ------- |
+| `--provider <type>`           | Provider type: `slack` or `mock`.                    | `slack` |
+| `--channel <name>`            | Default destination channel.                         |         |
+| `--username <name>`           | Default display name for posts.                      |         |
+| `--limits-max-file-size-bytes`| Max upload file size in bytes.                       | 1073741824 (1 GB) |
+| `--limits-max-stdin-size-bytes`| Max stdin read size in bytes.                       | 10485760 (10 MB) |
+
+#### `profile set` Keys
+
+```bash
+scat profile set <key> <value>
+scat profile set token   # prompts securely
+```
+
+| Key                         | Description                          |
+| --------------------------- | ------------------------------------ |
+| `provider`                  | Provider type (`slack` or `mock`).   |
+| `channel`                   | Default destination channel.         |
+| `token`                     | Authentication token (prompted securely). |
+| `username`                  | Default display name for posts.      |
+| `limits.max_file_size_bytes`| Max upload file size in bytes.       |
+| `limits.max_stdin_size_bytes`| Max stdin read size in bytes.       |
+
 ### `channel` Subcommands
 
 | Subcommand | Description                                      |
 | ---------- | ------------------------------------------------ |
-| `list`     | Lists available channels for `slack` profiles.   |
-| `create`   | Creates a new channel for `slack` profiles.      |
+| `list`     | Lists channels with their names and IDs.         |
+| `create`   | Creates a new channel.                           |
+| `invite`   | Invites users or user groups to a channel.       |
+
+#### `channel list` Flags
+
+| Flag     | Description                                      |
+| -------- | ------------------------------------------------ |
+| `--profile` / `-p` | Use a specific profile for this command. |
+| `--json` | Output in JSON format instead of a table.        |
+
+#### `channel create` Flags
+
+```bash
+scat channel create <channel-name> [flags]
+```
+
+| Flag               | Description                                          |
+| ------------------ | ---------------------------------------------------- |
+| `--profile` / `-p` | Use a specific profile for this command.             |
+| `--description`    | Set the channel description.                         |
+| `--topic`          | Set the channel topic.                               |
+| `--private`        | Create a private channel.                            |
+| `--invite`         | Invite users or user groups (comma-separated list).  |
+
+#### `channel invite` Flags
+
+```bash
+scat channel invite <channel> <user-or-group> [user-or-group...]
+```
+
+Users can be specified by display name (e.g. `alice`) or with an `@` prefix (e.g. `@alice`). User groups can be specified by handle (e.g. `@team-infra`).
+
+| Flag               | Description                                          |
+| ------------------ | ---------------------------------------------------- |
+| `--profile` / `-p` | Use a specific profile for this command.             |
+
+### `user` Subcommands
+
+| Subcommand | Description                                      |
+| ---------- | ------------------------------------------------ |
+| `list`     | Lists users with their names and IDs.            |
+
+#### `user list` Flags
+
+| Flag               | Description                                      |
+| ------------------ | ------------------------------------------------ |
+| `--profile` / `-p` | Use a specific profile for this command.         |
+| `--json`           | Output in JSON format instead of a table.        |
 
 ### `config` Subcommands
 
