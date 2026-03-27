@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/magifd2/scat/internal/appcontext"
-	"github.com/magifd2/scat/internal/config"
-	"github.com/magifd2/scat/internal/provider"
+	"github.com/nlink-jp/scat/internal/appcontext"
+	"github.com/nlink-jp/scat/internal/config"
+	"github.com/nlink-jp/scat/internal/provider"
 )
 
 // Provider implements the provider.Interface for Slack.

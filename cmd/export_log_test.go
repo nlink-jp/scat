@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/magifd2/scat/internal/provider/testprovider"
+	_ "github.com/nlink-jp/scat/internal/provider/testprovider"
 )
 
 func TestExportLog_Default(t *testing.T) {

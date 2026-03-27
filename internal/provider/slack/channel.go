@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/magifd2/scat/internal/provider"
+	"github.com/nlink-jp/scat/internal/provider"
 )
 
 // ResolveChannelID ensures a channel ID is returned for a given name.

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/magifd2/scat/internal/appcontext"
-	"github.com/magifd2/scat/internal/export"
+	"github.com/nlink-jp/scat/internal/appcontext"
+	"github.com/nlink-jp/scat/internal/export"
 	"github.com/spf13/cobra"
 )
 

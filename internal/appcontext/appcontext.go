@@ -1,6 +1,6 @@
 package appcontext
 
-import "github.com/magifd2/scat/internal/config"
+import "github.com/nlink-jp/scat/internal/config"
 
 // CtxKey is the key for the application context in a context.Context.
 type CtxKeyType struct{}

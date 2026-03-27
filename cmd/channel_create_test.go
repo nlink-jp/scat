@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/magifd2/scat/internal/provider/testprovider"
+	_ "github.com/nlink-jp/scat/internal/provider/testprovider"
 )
 
 func TestChannelCreateCmd(t *testing.T) {

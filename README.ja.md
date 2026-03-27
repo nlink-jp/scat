@@ -18,7 +18,7 @@
 
 ## インストール
 
-[リリースページ](https://github.com/magifd2/scat/releases)から、お使いのシステム用の最新のバイナリをダウンロードしてください。
+[リリースページ](https://github.com/nlink-jp/scat/releases)から、お使いのシステム用の最新のバイナリをダウンロードしてください。
 
 または、ソースからビルドすることも可能です:
 
@@ -26,7 +26,7 @@
 make build
 ```
 
-## 初期セットアップ
+## 設定
 
 投稿を開始する前に、設定ファイルを作成する必要があります。
 
@@ -61,7 +61,7 @@ make build
     scat profile use my-slack-workspace
     ```
 
-## 使用例
+## 使用方法
 
 `scat` の一般的な使い方をいくつか紹介します。
 
@@ -362,6 +362,16 @@ env:
 - `config init`
 
 ---
+
+## ビルド (Building)
+
+```bash
+make build      # 現在のプラットフォーム向けにビルド → dist/scat
+make build-all  # 全プラットフォーム向けにクロスコンパイル → dist/<binary>-<goos>-<goarch>[.exe]
+make package    # ビルド + .zip アーカイブを作成 → dist/
+make test       # テストスイートを実行
+make clean      # dist/ を削除
+```
 
 ## 謝辞 (Acknowledgements)
 

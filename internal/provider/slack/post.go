@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/magifd2/scat/internal/provider"
+	"github.com/nlink-jp/scat/internal/provider"
 )
 
 func (p *Provider) PostMessage(opts provider.PostMessageOptions) error {

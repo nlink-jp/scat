@@ -3,12 +3,12 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/magifd2/scat/internal/appcontext"
-	"github.com/magifd2/scat/internal/config"
-	"github.com/magifd2/scat/internal/provider"
-	"github.com/magifd2/scat/internal/provider/mock"
-	"github.com/magifd2/scat/internal/provider/slack"
-	"github.com/magifd2/scat/internal/provider/testprovider"
+	"github.com/nlink-jp/scat/internal/appcontext"
+	"github.com/nlink-jp/scat/internal/config"
+	"github.com/nlink-jp/scat/internal/provider"
+	"github.com/nlink-jp/scat/internal/provider/mock"
+	"github.com/nlink-jp/scat/internal/provider/slack"
+	"github.com/nlink-jp/scat/internal/provider/testprovider"
 )
 
 // providerFactory defines the function signature for creating a new provider.Interface.

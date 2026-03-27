@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/magifd2/scat/internal/export"
-	"github.com/magifd2/scat/internal/util"
+	"github.com/nlink-jp/scat/internal/export"
+	"github.com/nlink-jp/scat/internal/util"
 )
 
 // ExportLog performs the entire export operation for Slack.

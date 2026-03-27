@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/magifd2/scat/cmd"
+	"github.com/nlink-jp/scat/cmd"
 )
 
 func main() {

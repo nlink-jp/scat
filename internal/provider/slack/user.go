@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/magifd2/scat/internal/provider"
+	"github.com/nlink-jp/scat/internal/provider"
 )
 
 // populateUserCache fetches all users and populates the userIDCache.

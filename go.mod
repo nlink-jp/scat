@@ -1,4 +1,4 @@
-module github.com/magifd2/scat
+module github.com/nlink-jp/scat
 
 go 1.24.6
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/magifd2/scat/internal/appcontext"
+	"github.com/nlink-jp/scat/internal/appcontext"
 	"github.com/spf13/cobra"
 )
 

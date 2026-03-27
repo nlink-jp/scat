@@ -20,7 +20,7 @@
 
 ## Installation
 
-Download the latest binary for your system from the [Releases](https://github.com/magifd2/scat/releases) page.
+Download the latest binary for your system from the [Releases](https://github.com/nlink-jp/scat/releases) page.
 
 Alternatively, you can build from source:
 
@@ -28,7 +28,7 @@ Alternatively, you can build from source:
 make build
 ```
 
-## Initial Setup
+## Configuration
 
 Before you can start posting, you need to create a configuration file.
 
@@ -64,7 +64,7 @@ Before you can start posting, you need to create a configuration file.
     scat profile use my-slack-workspace
     ```
 
-## Usage Examples
+## Usage
 
 Here are some common ways to use `scat`.
 
@@ -367,6 +367,16 @@ The following are not available in server mode and will return an error:
 - `config init`
 
 ---
+
+## Building
+
+```bash
+make build      # Current platform → dist/scat
+make build-all  # All platforms → dist/<binary>-<goos>-<goarch>[.exe]
+make package    # Build + create .zip archives → dist/
+make test       # Run the test suite
+make clean      # Remove dist/
+```
 
 ## Acknowledgements
 

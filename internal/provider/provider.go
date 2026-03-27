@@ -1,6 +1,6 @@
 package provider
 
-import "github.com/magifd2/scat/internal/export"
+import "github.com/nlink-jp/scat/internal/export"
 
 // Capabilities defines what features a provider supports.
 type Capabilities struct {

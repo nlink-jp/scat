@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/magifd2/scat/internal/config"
+	"github.com/nlink-jp/scat/internal/config"
 )
 
 func TestProfileUse_Success(t *testing.T) {

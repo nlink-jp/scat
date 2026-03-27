@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/magifd2/scat/internal/provider"
-	_ "github.com/magifd2/scat/internal/provider/testprovider"
+	"github.com/nlink-jp/scat/internal/provider"
+	_ "github.com/nlink-jp/scat/internal/provider/testprovider"
 )
 
 func TestChannelList_Default(t *testing.T) {

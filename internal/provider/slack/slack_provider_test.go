@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/magifd2/scat/internal/appcontext"
-	"github.com/magifd2/scat/internal/config"
-	"github.com/magifd2/scat/internal/export"
-	"github.com/magifd2/scat/internal/provider"
+	"github.com/nlink-jp/scat/internal/appcontext"
+	"github.com/nlink-jp/scat/internal/config"
+	"github.com/nlink-jp/scat/internal/export"
+	"github.com/nlink-jp/scat/internal/provider"
 )
 
 // mockServerTransport is a custom http.RoundTripper that rewrites request URLs to the mock server.

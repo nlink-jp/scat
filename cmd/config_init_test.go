@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/magifd2/scat/internal/config"
-	_ "github.com/magifd2/scat/internal/provider/testprovider"
+	"github.com/nlink-jp/scat/internal/config"
+	_ "github.com/nlink-jp/scat/internal/provider/testprovider"
 )
 
 func TestConfigInit_Success(t *testing.T) {

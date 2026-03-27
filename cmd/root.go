@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/magifd2/scat/internal/appcontext"
-	"github.com/magifd2/scat/internal/config"
+	"github.com/nlink-jp/scat/internal/appcontext"
+	"github.com/nlink-jp/scat/internal/config"
 	"github.com/spf13/cobra"
 )
 

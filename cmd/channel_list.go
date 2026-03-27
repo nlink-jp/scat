@@ -7,8 +7,8 @@ import (
 	"sort"
 	"text/tabwriter"
 
-	"github.com/magifd2/scat/internal/appcontext"
-	"github.com/magifd2/scat/internal/provider"
+	"github.com/nlink-jp/scat/internal/appcontext"
+	"github.com/nlink-jp/scat/internal/provider"
 	"github.com/spf13/cobra"
 )
 

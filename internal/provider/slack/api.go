@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/magifd2/scat/internal/export"
-	"github.com/magifd2/scat/internal/provider"
+	"github.com/nlink-jp/scat/internal/export"
+	"github.com/nlink-jp/scat/internal/provider"
 )
 
 const (
