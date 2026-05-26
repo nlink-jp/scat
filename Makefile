@@ -55,7 +55,11 @@ $(eval ARCH := $(word 2,$(subst /, ,$(1))))
 $(eval EXT  := $(if $(filter windows,$(OS)),.exe,))
 $(eval BIN  := $(OUTPUT_DIR)/$(BINARY)-$(OS)-$(ARCH)$(EXT))
 $(eval ZIP  := $(OUTPUT_DIR)/$(BINARY)-$(VERSION)-$(OS)-$(ARCH).zip)
-	zip -j $(ZIP) $(BIN) README.md ;
+$(eval STAGE := $(OUTPUT_DIR)/_pkg-$(OS)-$(ARCH))
+	rm -rf $(STAGE) && mkdir -p $(STAGE) ;
+	cp $(BIN) $(STAGE)/$(BINARY)$(EXT) ;
+	zip -j $(ZIP) $(STAGE)/$(BINARY)$(EXT) README.md ;
+	rm -rf $(STAGE) ;
 endef
 
 ## test: Run the test suite
