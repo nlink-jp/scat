@@ -22,7 +22,7 @@ _CACHE_INIT := $(shell mkdir -p "$(GOMODCACHE)" "$(GOCACHE)" "$(GOTMPDIR)")
 # darwin ships arm64 only (no amd64, no universal). linux/windows keep their matrix.
 PLATFORMS := darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: build build-all package test lint check clean help
+.PHONY: build build-all package verify-release test lint check clean help
 
 ## build: Build binary for the current OS/Arch → dist/scat
 build:
@@ -56,6 +56,22 @@ package: build-all
 		rm -rf $$stage; \
 	done
 	@scripts/notarize-darwin.sh $(OUTPUT_DIR)/$(BINARY)-$(VERSION)-darwin-arm64.zip "$(NOTARY_PROFILE)"
+
+## verify-release: refuse to release an un-notarized zip (marker gate)
+verify-release:
+	@test -f "$(OUTPUT_DIR)/$(BINARY)-$(VERSION)-darwin-arm64.zip.notarized" || { \
+		echo "verify-release: FAIL — $(BINARY)-$(VERSION)-darwin-arm64.zip has no notarization marker."; \
+		echo "  make package must end with '[notarize] ...: Accepted'. Do not upload this zip."; \
+		exit 1; }
+	@test "$(OUTPUT_DIR)/$(BINARY)-$(VERSION)-darwin-arm64.zip.notarized" -nt "$(OUTPUT_DIR)/$(BINARY)-$(VERSION)-darwin-arm64.zip" || { \
+		echo "verify-release: FAIL — the zip was rebuilt after its marker (re-run make package)."; \
+		exit 1; }
+	@tmp=$$(mktemp -d) && \
+		unzip -oq "$(OUTPUT_DIR)/$(BINARY)-$(VERSION)-darwin-arm64.zip" -d "$$tmp" && \
+		"$$tmp/$(BINARY)" --version && \
+		spctl -a -vv -t install "$$tmp/$(BINARY)" 2>&1 | head -2 || true; \
+		rm -rf "$$tmp"
+	@echo "verify-release: OK ($(VERSION), notarization marker present)"
 
 ## test: Run the test suite
 test:
