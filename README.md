@@ -47,7 +47,7 @@ Before you can start posting, you need to create a configuration file.
 
     The default profile uses a mock provider, which is useful for testing. To post to a real service like Slack, you need to add a new profile.
 
-    For detailed instructions on setting up a Slack profile, please see the **[Slack Setup Guide](./docs/SLACK_SETUP.md)**.
+    For detailed instructions on setting up a Slack profile, please see the **[Slack Setup Guide](./docs/en/SLACK_SETUP.md)**.
 
     Here is a quick example of how to add a new Slack profile:
 
@@ -104,7 +104,7 @@ Here are some common ways to use `scat`.
 
 ### Exporting Channel Logs (`export log`)
 
-Exports message history from a channel to a structured JSON file or stdout. It fetches all messages, including replies in threads. For details on the output format, including fields like `user_id`, `user_name`, and `post_type`, please refer to the [Export Data Format documentation](./docs/EXPORT_FORMAT.md).
+Exports message history from a channel to a structured JSON file or stdout. It fetches all messages, including replies in threads. For details on the output format, including fields like `user_id`, `user_name`, and `post_type`, please refer to the [Export Data Format documentation](./docs/en/EXPORT_FORMAT.md).
 
 -   **Export to stdout and pipe to `jq`**:
     `scat export log --channel "#random" | jq .`

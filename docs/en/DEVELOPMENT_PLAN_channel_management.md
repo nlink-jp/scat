@@ -58,7 +58,7 @@ This document outlines the development plan for implementing new channel creatio
 
 ### Step 6: Update Documentation
 - **`README.md`, `README.ja.md`**: Add usage instructions for the new commands. (Note: This step is pending and needs to be done separately.)
-- **`docs/SLACK_SETUP.md`, `docs/SLACK_SETUP.ja.md`**: Added the newly required OAuth scopes to the setup instructions:
+- **`docs/en/SLACK_SETUP.md`, `docs/ja/SLACK_SETUP.ja.md`**: Added the newly required OAuth scopes to the setup instructions:
   - `channels:manage`
   - `groups:write`
   - `usergroups:read` (Note: This scope was added during implementation.)

@@ -38,7 +38,7 @@ When opening an issue for a bug, please include the following:
 
 ## Development Setup
 
-For instructions on how to build the project, run tests, and other development tasks, please see [BUILD.md](./docs/BUILD.md).
+For instructions on how to build the project, run tests, and other development tasks, please see [BUILD.md](./docs/en/BUILD.md).
 
 To run tests, simply execute:
 ```bash
