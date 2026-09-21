@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   informational `spctl` line may be ignored. Matches the org template
   (CONVENTIONS.md §Code Signing → Verifying a release).
 
+### Documentation
+
+- `docs/{en,ja}/EXPORT_FORMAT` describe what `scat export log` writes: the
+  top-level `export_timestamp` and `channel_name`, that `files` is left out rather
+  than empty, that a thread's parent carries `thread_timestamp_unix` too, and that
+  scat does not write the `attachments` and `blocks` stail and scli do. The example
+  showed `"files": []`, which scat never writes.
+
 ## [1.15.0] - 2026-07-12
 
 ### Removed
