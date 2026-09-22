@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed — breaking v2 renewal
+## [2.0.0] - 2026-09-22
 
-- Make scat Slack-only and bot-authenticated; remove runtime provider registration,
+### Changed
+
+- **Breaking:** Make scat Slack-only and bot-authenticated; remove runtime provider registration,
   capabilities, mock/test providers, endpoint fields and SCAT_PROVIDER. Preserve
   named bot profiles; reject legacy configuration with explicit migration guidance.
 - Replace startup-wide resolution with invocation-scoped dependencies, lazy ID/name
@@ -63,11 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Record accepted [ADR-0001](docs/en/adr/0001-slack-bot-renewal.md) and its
   Japanese mirror; replace the v1 setup/build/export guides with v2 contracts,
   migration steps and project-specific agent guidance.
-- `docs/{en,ja}/EXPORT_FORMAT` describe what `scat export log` writes: the
-  top-level `export_timestamp` and `channel_name`, that `files` is left out rather
-  than empty, that a thread's parent carries `thread_timestamp_unix` too, and that
-  scat does not write the `attachments` and `blocks` stail and scli do. The example
-  showed `"files": []`, which scat never writes.
+- Replace the old export documentation with the scli-compatible v2 schema,
+  including always-present file arrays and local_path, attachments and blocks.
 
 ## [1.15.0] - 2026-07-12
 
