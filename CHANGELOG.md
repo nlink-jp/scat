@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-09-23
+
+### Fixed
+
+- Actually keep macOS extended attributes out of the Linux archives. v2.1.0 set
+  `COPYFILE_DISABLE=1`, which does not stop macOS `tar` from writing them as
+  `LIBARCHIVE.xattr.*` / `SCHILY.xattr.*` pax headers — the archives built for
+  v2.1.0 still carried a Dropbox attribute and `com.apple.provenance`.
+  `tar --no-xattrs` removes them. v2.1.0 published no archives.
+
+### Added
+
+- `make verify-release` now also judges each Linux archive: no macOS metadata
+  entries, no extended attributes as pax headers, and exactly the canonical
+  binary, `README.md` and `LICENSE`. The claim is checked, not asserted.
+
 ## [2.1.0] - 2026-09-23
 
 ### Added

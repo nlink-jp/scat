@@ -51,7 +51,7 @@ package: build-all
 		cp "$(BINARY)-$$os-$$arch$$ext" "$$stage/$(BINARY)$$ext"; \
 		cp ../README.md ../LICENSE $$stage/; \
 		base="$(BINARY)-$(VERSION)-$$os-$$arch"; \
-		if [ "$$os" = linux ]; then ( cd $$stage && COPYFILE_DISABLE=1 tar -czf "../$$base.tar.gz" * ); \
+		if [ "$$os" = linux ]; then ( cd $$stage && COPYFILE_DISABLE=1 tar --no-xattrs -czf "../$$base.tar.gz" * ); \
 		else ( cd $$stage && zip -q "../$$base.zip" * ); fi; \
 		rm -rf $$stage; \
 	done
@@ -83,7 +83,21 @@ verify-release:
 		fi; \
 		rm -rf "$$tmp"; \
 		exit $$rc
-	@echo "verify-release: OK ($(VERSION), notarized, unpacks, runs, reports its version)"
+	@for p in $(PLATFORMS); do os=$${p%/*}; arch=$${p#*/}; \
+		[ "$$os" = linux ] || continue; \
+		f="$(OUTPUT_DIR)/$(BINARY)-$(VERSION)-$$os-$$arch.tar.gz"; \
+		names=$$(tar -tzf "$$f") || { echo "verify-release: FAIL — $$f does not list."; exit 1; }; \
+		if printf '%s\n' "$$names" | grep -qE '(^|/)(\._|PaxHeader|__MACOSX)'; then \
+			echo "verify-release: FAIL — $$f carries macOS metadata entries."; exit 1; fi; \
+		if gzip -dc "$$f" | grep -qa -e 'LIBARCHIVE.xattr' -e 'SCHILY.xattr'; then \
+			echo "verify-release: FAIL — $$f carries extended attributes as pax headers."; \
+			echo "  macOS tar writes them unless called with --no-xattrs; COPYFILE_DISABLE alone does not."; \
+			exit 1; fi; \
+		if [ "$$(printf '%s\n' "$$names" | sort | tr '\n' ' ')" != "LICENSE README.md $(BINARY) " ]; then \
+			echo "verify-release: FAIL — $$f holds $$(printf '%s ' $$names), not the binary, README.md and LICENSE."; \
+			exit 1; fi; \
+	done
+	@echo "verify-release: OK ($(VERSION), notarized, unpacks, runs, reports its version, clean linux archives)"
 
 ## test: Run the test suite
 test:
