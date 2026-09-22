@@ -219,6 +219,25 @@ func TestCreateReportsPartialFailure(t *testing.T) {
 		t.Fatal(v, e, calls)
 	}
 }
+func TestCreatePrivateChannelRequestsPrivate(t *testing.T) {
+	body := ""
+	c := client(t, func(r *http.Request) (*http.Response, error) {
+		switch r.URL.Path {
+		case "/api/auth.test":
+			return authResponse(r), nil
+		case "/api/conversations.create":
+			b, _ := io.ReadAll(r.Body)
+			body = string(b)
+			return response(r, 200, `{"ok":true,"channel":{"id":"CNEW","name":"new"}}`), nil
+		}
+		t.Fatal(r.URL.Path)
+		return nil, nil
+	})
+	v, e := c.Create(context.Background(), CreateOptions{Name: "new", Private: true})
+	if e != nil || v.ID != "CNEW" || !strings.Contains(body, "is_private=true") {
+		t.Fatal(v, e, body)
+	}
+}
 func TestAmbiguousUserAndDirectGroup(t *testing.T) {
 	c := client(t, func(r *http.Request) (*http.Response, error) {
 		switch r.URL.Path {
