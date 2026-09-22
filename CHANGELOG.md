@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list is compared in the C locale, so a correct archive is not refused when the
   gate runs under a UTF-8 locale, and a refusal states the expected list. The
   v2.1.1 archives were built with both settings; only the check was blind.
+- The Linux-archive check in `make verify-release` reads each archive's pax
+  headers with Python's `tarfile` instead of grepping the decompressed stream,
+  which also matched file text that names the keywords (a bundled CHANGELOG,
+  for one).
 
 ## [2.1.1] - 2026-09-23
 
