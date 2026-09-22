@@ -42,8 +42,9 @@ integration. Run the organization check after the pointer update.
 
 ## Current structure
 
-- `slack-app-manifest.json`: bot-only full-feature Slack app template, included
-  in release archives; `manifest_test.go` checks capability scopes and auth modes.
+- `slack-app-manifest.json`: bot-only full-feature Slack app template, taken from
+  the repository (release archives hold binary + README + LICENSE only);
+  `manifest_test.go` checks capability scopes and auth modes.
 - `main.go`: entry point; module `github.com/nlink-jp/scat`.
 - `cmd/`: Cobra commands and invocation-scoped dependencies/configuration.
 - `internal/config/`: bot profiles, limits and environment-only service mode.
