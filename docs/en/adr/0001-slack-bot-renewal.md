@@ -267,6 +267,7 @@ authorized release gate; mock success is not proof of actual Slack delivery.
 
 Official references checked 2026-09-22. Request only scopes for enabled operations;
 the following rows are alternatives by conversation type, not one mandatory union.
+(For the distributed manifest, see the 2026-09-23 amendment at the end of this record.)
 
 | API / purpose | Bot scope |
 |---------------|-----------|
@@ -417,3 +418,17 @@ downloaded bytes, parent-bound export and real invalid-token failure, with clean
 It exposed Slack's text/plain metadata plus force-download response for HTML/JSON;
 attachment identity and full-size validation correct the false rejection.
 See [BUILD](../BUILD.md#live-slack-e2e) for the repeatable command and precise scope.
+
+### Manifest scope amendment — 2026-09-23
+
+The shipped `slack-app-manifest.json` requests the union of the scopes in §6, not
+one set per enabled operation. A manifest is imported once, before anyone knows
+which operations an installation will use, and Slack applies it as a whole: a
+per-operation manifest would mean several manifests, a decision the operator
+cannot yet make, and a reinstall for every later feature. The union is the set
+this CLI can use, never more, and `manifest_test.go` pins it in both directions.
+
+§6 remains the rule for what the code may call. An operator who wants a narrower
+installation deletes scopes from the copy before importing it; the commands whose
+scopes were removed then fail with the method, code and needed scope, which is the
+failure mode §6 already requires.
