@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Give cancellation priority over stream EOF and check it before committing a
+  downloaded attachment; retain the previous destination on cancellation.
+
 - **`make verify-release` now fails closed.** Its last block chained unzip, the
   packaged binary's `--version` and `spctl` with `&&` and ended the whole chain
   in `|| true`, so a zip that did not unpack or a binary that did not run exited

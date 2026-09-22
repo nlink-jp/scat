@@ -304,3 +304,13 @@ func TestStreamSplitsFlushesErrorsAndCancellation(t *testing.T) {
 		t.Fatal("stream limit ignored")
 	}
 }
+
+func TestCanceledEmptyStreamNeverSucceeds(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	for i := 0; i < 100; i++ {
+		if err := streamText(ctx, strings.NewReader(""), io.Discard, false, 0, nil, func(string) error { t.Fatal("sent after cancellation"); return nil }); !errors.Is(err, context.Canceled) {
+			t.Fatal("EOF won over cancellation", err)
+		}
+	}
+}

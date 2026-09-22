@@ -151,6 +151,9 @@ type runeRead struct {
 func streamText(ctx context.Context, in io.Reader, out io.Writer, tee bool, limit int64, ticks <-chan time.Time, send func(string) error) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	events := make(chan runeRead, 1)
 	// A blocking arbitrary Reader cannot be canceled by Go. The CLI exits on signal;
 	// injected finite readers and all subsequent sends observe this context.
@@ -176,6 +179,9 @@ func streamText(ctx context.Context, in io.Reader, out io.Writer, tee bool, limi
 	pending := make([]rune, 0, 4000)
 	var bytesRead int64
 	flush := func() error {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("stream canceled with %d buffered characters unsent: %w", len(pending), err)
+		}
 		if len(pending) == 0 {
 			return nil
 		}

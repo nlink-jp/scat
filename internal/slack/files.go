@@ -274,6 +274,9 @@ func (c *Client) Download(ctx context.Context, f File, dir string) (string, erro
 	if err = dst.Close(); err != nil {
 		return "", err
 	}
+	if err = transferCtx.Err(); err != nil {
+		return "", err
+	}
 	if err = root.Rename(temp, name); err != nil {
 		return "", err
 	}

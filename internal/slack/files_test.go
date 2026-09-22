@@ -274,3 +274,32 @@ func TestLegitimateErrorJSONAttachment(t *testing.T) {
 		t.Fatal("ambiguous API error accepted")
 	}
 }
+
+type cancelOnClose struct {
+	io.Reader
+	cancel context.CancelFunc
+}
+
+func (c cancelOnClose) Close() error { c.cancel(); return nil }
+func TestDownloadCanceledAtClosePreservesDestination(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "F1_file")
+	os.WriteFile(path, []byte("old"), 0600)
+	c := client(t, func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path == "/api/auth.test" {
+			return authResponse(r), nil
+		}
+		res := response(r, 200, "new")
+		res.Body = cancelOnClose{strings.NewReader("new"), cancel}
+		return res, nil
+	})
+	if _, err := c.Download(ctx, File{ID: "F1", Name: "file", URL: "https://files.slack.com/file"}, dir); !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(path)
+	if string(b) != "old" {
+		t.Fatal("canceled download replaced destination")
+	}
+}
