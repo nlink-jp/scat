@@ -1,23 +1,33 @@
-# Development Plan: Channel Management Features
+# v1 Development Record: Channel Management
 
-> Historical v1 plan. Current behavior is specified in [ADR-0001](adr/0001-slack-bot-renewal.md) and [README](../../README.md).
+This document records the v1 implementation. References to unimplemented or pending
+work below describe v1, not features deferred from v2. See [ADR-0001](adr/0001-slack-bot-renewal.md)
+for the v2 contract and [README](../../README.md) for usage.
 
-This document outlines the development plan for implementing new channel creation and user invitation features in `scat`.
+## Invitations in v2
 
-## 1. Features
+- `scat channel create <name> --invite <users>` invites users during creation.
+- `scat channel invite <channel> <user-or-group>...` **adds users to an existing channel.**
+
+Both commands are implemented and covered by injected-API tests. Live invitations
+are separate from the post/upload/export round-trip suite and were not included
+in the 2026-09-22 measurement. Feature availability and verification scope are
+separate facts; see [BUILD](BUILD.md#live-slack-e2e).
+
+## 1. v1 Features
 
 - **`scat channel create`**: A new command to create a public or private Slack channel.
   - It supports setting the description and topic.
   - It supports inviting users and user groups upon creation.
 - User specification supports both User IDs (e.g., `U12345`) and mention names (e.g., `@username`).
-  - Note: A separate `scat channel invite` command was not implemented; invitation is handled directly by `scat channel create`.
+  - In v1, invitations were available only during creation, without a separate `scat channel invite`. **v2 implements the separate command.**
 
-## 2. Design Policy
+## 2. v1 Design Policy
 
 - All parameters for provider methods, including required ones, will be passed via a single `Options` struct to maintain consistency with existing patterns (`Post`, `ExportLog`).
 - The implementation will be layered, separating low-level API calls from high-level provider logic and CLI command logic.
 
-## 3. Development Steps
+## 3. v1 Development Steps
 
 ### Step 1: Add Capabilities Definitions
 - **File:** `internal/provider/provider.go`
@@ -59,7 +69,7 @@ This document outlines the development plan for implementing new channel creatio
   - Verified that command flags are parsed correctly and that the `test_provider`'s in-memory state is updated as expected.
 
 ### Step 6: Update Documentation
-- **`README.md`, `README.ja.md`**: Add usage instructions for the new commands. (Note: This step is pending and needs to be done separately.)
+- **`README.md`, `README.ja.md`**: Add usage instructions for the new commands. (The v1 record left this step pending. The current README documents v2 usage.)
 - **`docs/en/SLACK_SETUP.md`, `docs/ja/SLACK_SETUP.ja.md`**: Added the newly required OAuth scopes to the setup instructions:
   - `channels:manage`
   - `groups:write`

@@ -128,6 +128,9 @@ Lists concern only the selected profile and return JSON arrays. IDs avoid name
 listing; ambiguous names fail. Invitations accept users or user groups; group IDs
 avoid user-name lookup. Creation prints its ID or `{"id":"...","name":"..."}`.
 Invitation JSON is `{"channel":"...","users":["..."]}`; plain mode uses stderr.
+`channel invite` adds users to an existing channel, independently of creation-time
+`channel create --invite`.
+
 Create/invite support `--dry-run` and do not resolve names in that mode.
 If setting topic/purpose or inviting fails after creation, the error includes the
 created ID; scat does not recreate or delete it automatically.

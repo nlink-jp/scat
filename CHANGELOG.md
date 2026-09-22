@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Label historical development plans as v1 records and explicitly document v2
+  invitations to existing channels, separately from live verification coverage.
+
 - Clarify the organization main/submodule workflow; independent review does not
   require pull requests. Remove mutable release-status prose from the READMEs.
 

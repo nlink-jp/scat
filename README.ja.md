@@ -116,6 +116,7 @@ scat channel invite C0123456789 U0123456789 @on-call
 ```
 
 一覧は選択profileだけを対象にし、JSONは配列です。ID指定なら名前一覧取得を避け、曖昧な名前はエラーにします。
+`channel invite` は既存チャネルへの追加招待です。作成時の `channel create --invite` とは別に使えます。
 招待はユーザー・ユーザーグループに対応し、グループIDならユーザー名検索を避けます。
 作成はIDまたは `{"id":"...","name":"..."}` を出力します。
 招待JSONは `{"channel":"...","users":["..."]}`、通常表示はstderrです。

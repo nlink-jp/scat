@@ -1,9 +1,12 @@
-# 開発計画
+# v1の開発記録
 
 このドキュメントは `scat` の過去の開発計画を保存しています。
 現在の承認済み刷新設計は [ADR-0001](adr/0001-slack-bot-renewal.ja.md) です。
 マルチプロバイダのロードマップを、Slack専用ボットCLIとscli互換exportへ置き換えます。
 以下のマイルストーンと他サービス対応案は過去の背景であり、現在の計画ではありません。
+
+v2には既存チャネルへの追加招待 `scat channel invite` も含まれます。
+[チャンネル管理の新旧対応](DEVELOPMENT_PLAN_channel_management.ja.md)を参照してください。
 
 ---
 
