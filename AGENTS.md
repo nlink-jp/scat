@@ -42,6 +42,8 @@ integration. Run the organization check after the pointer update.
 
 ## Current structure
 
+- `slack-app-manifest.json`: bot-only full-feature Slack app template, included
+  in release archives; `manifest_test.go` checks capability scopes and auth modes.
 - `main.go`: entry point; module `github.com/nlink-jp/scat`.
 - `cmd/`: Cobra commands and invocation-scoped dependencies/configuration.
 - `internal/config/`: bot profiles, limits and environment-only service mode.
@@ -61,6 +63,9 @@ integration. Run the organization check after the pointer update.
   for the parent-selection interval and intended corrections such as deduplication.
 - scli's serialized `local_path` is always present; its prose says optional.
   The renewal follows the actual output type and pins the distinction in fixtures.
+- The manifest uses Web API bot scopes only, no Socket Mode/events/callbacks.
+  Keep token rotation off: scat does not implement OAuth refresh. Scope changes
+  need app reinstallation; manifest import alone does not grant channel membership.
 - Keep user credentials out of scat. No fallback to scli config or generic
   `SLACK_TOKEN`; remote work must verify the bot identity as the ADR specifies.
 - Preserve API permission errors; don't report incomplete message retrieval as

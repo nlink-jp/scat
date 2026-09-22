@@ -2,10 +2,55 @@
 
 [English](../en/SLACK_SETUP.md)
 
-bot userを持つSlack appを作成・設定し、必要な操作のscopeを付与してworkspaceへinstall/reinstallします。
-bot tokenは `scat profile set token` の非表示端末入力、またはサービスの `SCAT_TOKEN` から渡します。
-トークンをコマンド引数にしないでください。設定とserver modeは[README](../../README.ja.md)を参照してください。
-scliのユーザー認証とは明確に分離しています。
+## マニフェストからアプリを作成
+
+[slack-app-manifest.json](../../slack-app-manifest.json)を使うと、botと権限を一括で設定できます。
+このcheckoutから作る配布アーカイブにも、binaryと同じ場所に同梱します。
+トークン・workspace ID・callback URLを含まないため、複数workspaceで使い回せます。
+
+1. [Your Apps](https://api.slack.com/apps)で **Create New App → From a manifest** を選び、
+   botを使うworkspaceを指定します。
+2. **JSON** を選択してファイル全文を貼り付け、権限の確認画面へ進みます。
+   内容を確認してアプリを作成します。アプリ名・bot表示名の既定値は `scat` です。
+   変更したい場合は、貼り付ける前にマニフェストの表示名を変更してください。
+3. **Install to Workspace** を実行します。管理者承認が必要なworkspaceでは承認を申請します。
+   インストール後、**OAuth & Permissions** の **Bot User OAuth Token** をコピーします。
+4. 以下を実行し、非表示の入力欄へtokenを貼り付けます。使うのはbot token（`xoxb-`）です。
+   user tokenやapp-level tokenではありません。
+
+```sh
+scat config init
+scat profile set token
+scat profile set channel C0123456789
+```
+
+アクセス対象のチャネル、特にprivate channelにはbotを追加してください。
+マニフェストが設定するのはscopeであり、チャネルへの参加や全会話へのアクセスではありません。
+サービスでは同じbot tokenを `SCAT_TOKEN` とし、`SCAT_MODE=server` を設定します。
+詳細は[README](../../README.ja.md)を参照してください。tokenはマニフェストやコマンド引数に書きません。
+
+テンプレートには既存機能の権限をまとめています。テキスト・rich投稿と名前/アイコン変更、
+ファイル送受信、チャネル/スレッドexport、チャネル作成・既存チャネルへの追加招待、
+ユーザー/グループ検索に対応します。作成と招待は `channels:manage`・`groups:write` で対応するため、
+招待専用scopeの重複追加は不要です。user scopeは要求しません。
+
+scatはWeb APIを使うため、Events API・Socket Mode・Incoming Webhook・公開サーバー・
+OAuth redirect URLは不要です。期限付きOAuth tokenのrefreshを実装していないため、
+テンプレートではtoken rotationを無効にしています。stailで使うapp-level tokenやSocket Mode設定も不要です。
+
+## 既存アプリの更新
+
+既存のscatアプリでは、現在の **App Manifest** をバックアップしてからJSON editorを開き、
+`oauth_config.scopes.bot` をテンプレートのbot scope一覧でまとめて置き換えます。
+その他のアプリ設定は維持してください。保存後、**Reinstall to Workspace** を行って追加権限を付与します。
+マニフェストの更新だけでは、インストール済みtokenの権限は更新されません。
+scatに必要な、rotationを使わないbot token設定を維持してください。
+
+## 権限の一覧とカスタマイズ
+
+付属テンプレートは投稿専用の最小構成ではなく、既存機能をまとめて使える構成です。
+用途を限定する場合はコピーから不要なscopeを削除して取り込みます。
+その際に使えなくなる操作は下表で確認できます。テンプレートをそのまま使う場合、権限の個別追加は不要です。
 
 | 操作 | scope・アクセス |
 |------|-----------------|
@@ -21,7 +66,7 @@ scliのユーザー認証とは明確に分離しています。
 | 作成・topic・purpose | publicは `channels:manage`、privateは `groups:write` |
 | 招待 | publicは `channels:manage` / `channels:write.invites`、privateは `groups:write` / `groups:write.invites` |
 
-全scopeをまとめて要求する表ではありません。channel/userの明示的IDなら名前一覧APIを避けます。
+channel/userの明示的IDなら名前一覧APIを避けます。
 uploadはchannel IDでも参加確認のread権限が必要です。private channelにはbotを招待してください。
 scatはexportのための自動参加や、ユーザー権限へのfallbackを行いません。
 
@@ -57,3 +102,8 @@ SlackはHTML/JSON添付を `text/plain` と分類し、元のバイトを
 [upload割当](https://docs.slack.dev/reference/methods/files.getUploadURLExternal/)、
 [upload完了](https://docs.slack.dev/reference/methods/files.completeUploadExternal/)、
 [ADRのscope一覧](adr/0001-slack-bot-renewal.ja.md)。
+
+マニフェストの参照: [設定ガイド](https://docs.slack.dev/app-manifests/configuring-apps-with-app-manifests/)、
+[フィールド仕様](https://docs.slack.dev/reference/app-manifest/)。
+リポジトリのテストはJSON構造・対応するbot scope・未対応の認証モードが無効であることを確認します。
+Slack上のアプリ作成・インストールは行いません。

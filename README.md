@@ -22,7 +22,9 @@ scat profile set token      # hidden terminal prompt; never pass a token argumen
 scat profile set channel C0123456789
 ```
 
-[Slack setup and scopes](docs/en/SLACK_SETUP.md) · [Build and test](docs/en/BUILD.md)
+Create a Slack app with [slack-app-manifest.json](slack-app-manifest.json) to set
+all bot scopes at once (**Create New App → From a manifest → JSON**).
+[Setup and existing-app updates](docs/en/SLACK_SETUP.md) · [Build and test](docs/en/BUILD.md)
 
 Run `make e2e` against a dedicated Slack channel before declaring live behavior verified.
 It builds the CLI and checks real posts, threads, streams, file round trips and export.

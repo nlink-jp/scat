@@ -32,7 +32,8 @@ scatの変更はここでコミットし、push後にアンブレラ側のgitlin
 submoduleを通常ディレクトリに置き換えたり、未公開commitをアンブレラから参照したりしません。
 他のsubmoduleは変更しません。
 
-`make package` はrelease archiveを作成してmacOS notarizationを要求し、
+`make package` は全環境の配布archiveにbinary・README・LICENSEと
+`slack-app-manifest.json` を同梱し、macOS notarizationを要求します。
 `make verify-release` は公開前にnotarized archiveとversionを検証します。
 `make brew` はHomebrew formulaを生成します。組織のrelease・署名規約に従ってください。
 ローカルのad-hocビルド成功はnotarized releaseを意味しません。

@@ -2,11 +2,60 @@
 
 [日本語](../ja/SLACK_SETUP.ja.md)
 
-Create or configure a Slack app with a bot user, grant scopes for the operations
-you need, and install/reinstall it in the workspace. Use its bot token through
-`scat profile set token` (hidden terminal input) or the service's `SCAT_TOKEN`.
-Do not pass tokens in command arguments. See [README](../../README.md) for config
-and server mode; scli user authentication is deliberately separate.
+## Create an app from the manifest
+
+Use [slack-app-manifest.json](../../slack-app-manifest.json) to configure the bot
+and its scopes in one import. The same file is included beside the binary in
+release archives produced from this checkout. It contains no tokens, workspace
+IDs or callback URLs and can be reused across workspaces.
+
+1. Open [Your Apps](https://api.slack.com/apps), choose **Create New App → From a manifest**,
+   and select the workspace where the bot will run.
+2. Choose **JSON**, paste the complete file, and continue to the permissions review.
+   Review the scopes and create the app. Its default app/bot name is `scat`;
+   change the display names in the manifest first if needed.
+3. Choose **Install to Workspace** (or request your workspace administrator's approval).
+   After installation, copy **Bot User OAuth Token** from **OAuth & Permissions**.
+4. Run the commands below and paste that token at the hidden prompt. Use the bot
+   token (`xoxb-`), not a user or app-level token.
+
+```sh
+scat config init
+scat profile set token
+scat profile set channel C0123456789
+```
+
+Add the bot to the channels it should access, particularly private channels.
+The manifest grants scopes, not membership or access to every workspace conversation.
+For services, inject the same bot token as `SCAT_TOKEN` with `SCAT_MODE=server`;
+see [README](../../README.md). Tokens do not belong in the manifest or command arguments.
+
+The template covers the existing bot CLI features: text/rich posts and custom
+name/icon, file upload/download, channel/thread export, channel creation and
+invitations to existing channels, and user/group lookup. `channels:manage` and
+`groups:write` cover channel creation and invitations, so separate invite-only
+scopes are unnecessary in this template. It does not request user scopes.
+
+scat calls the Web API and needs no Events API, Socket Mode, incoming webhook,
+public server or OAuth redirect URL. Token rotation is disabled in the template
+because scat does not refresh expiring OAuth tokens. The app-level token and
+Socket Mode settings used by stail are not needed here.
+
+## Update an existing app
+
+For an existing scat app, save a copy of its current **App Manifest**, then use
+its JSON editor to replace `oauth_config.scopes.bot` with the template's entire
+bot-scope list in one paste, keeping other app settings intact. Save the change
+and **Reinstall to Workspace** to grant newly added scopes. Updating the manifest
+alone does not update an already installed token's permissions. Keep the
+non-rotating bot-token configuration required by scat.
+
+## Scope reference and customization
+
+The supplied template covers the full feature set, rather than a posting-only
+minimum. For a limited deployment, remove unused scopes from a copy before
+importing it; this table explains which operations will then be unavailable.
+No manual per-scope assignment is needed when using the unmodified manifest.
 
 | Operation | Scopes / access |
 |-----------|-----------------|
@@ -22,7 +71,7 @@ and server mode; scli user authentication is deliberately separate.
 | Create / topic / purpose | `channels:manage` (public) / `groups:write` (private) |
 | Invite | Public: `channels:manage` or `channels:write.invites`; private: `groups:write` or `groups:write.invites` |
 
-This table is not a requirement to grant all scopes. Explicit channel/user IDs
+Explicit channel/user IDs
 avoid name-list APIs. Upload membership inspection still requires read access,
 even with a channel ID. A bot must be invited to private channels. scat never
 joins a channel to export history and never falls back to a user identity.
@@ -63,3 +112,8 @@ References: [auth.test](https://docs.slack.dev/reference/methods/auth.test/),
 [upload allocation](https://docs.slack.dev/reference/methods/files.getUploadURLExternal/),
 [upload completion](https://docs.slack.dev/reference/methods/files.completeUploadExternal/),
 [ADR scope inventory](adr/0001-slack-bot-renewal.md).
+
+Manifest references: [configuration guide](https://docs.slack.dev/app-manifests/configuring-apps-with-app-manifests/),
+[field reference](https://docs.slack.dev/reference/app-manifest/).
+The repository test checks JSON structure, supported bot scopes and disabled
+unsupported auth modes; it does not create or install an app in Slack.

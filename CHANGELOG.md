@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a bot-only Slack App Manifest with scopes for existing CLI features, include
+  it in release archives, and document manifest-based installation and app updates
+  in English and Japanese. Validate the permission/credential boundary in tests.
+  Suppress macOS AppleDouble entries when assembling Linux archives.
+
 ## [2.0.0] - 2026-09-22
 
 ### Changed

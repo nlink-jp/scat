@@ -21,7 +21,9 @@ scat profile set token      # 非表示の端末入力。トークンを引数�
 scat profile set channel C0123456789
 ```
 
-[Slack設定とscope](docs/ja/SLACK_SETUP.ja.md) · [ビルドとテスト](docs/ja/BUILD.ja.md)
+[slack-app-manifest.json](slack-app-manifest.json)を
+**Create New App → From a manifest → JSON** で取り込むと、bot権限を一括設定できます。
+[セットアップ・既存アプリの更新](docs/ja/SLACK_SETUP.ja.md) · [ビルドとテスト](docs/ja/BUILD.ja.md)
 
 実Slackでの動作確認には専用チャンネルで `make e2e` を実行します。
 CLIをビルドし、実際の投稿・スレッド・stream・ファイル往復・exportを照合します。
