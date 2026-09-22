@@ -1,94 +1,79 @@
-# ログエクスポートのデータ形式
+# Exportデータ形式（v2）
 
-`scat export log` コマンドは、チャンネルのメッセージ履歴を構造化されたJSON形式で出力します。
+[English](../en/EXPORT_FORMAT.md)
 
-## 最上位
-
-- `export_timestamp` (string): エクスポートした時刻（UTC、RFC3339形式、例: `2025-08-15T11:03:53Z`）。
-- `channel_name` (string): `--channel` に渡したチャンネル名そのもの（例: `#example-channel`）。
-- `messages` (array of objects): メッセージの配列（1件につき1エントリ）。
-
-## メッセージ
-
-`messages` 配列の各エントリは1件のメッセージを表し、以下のフィールドを含みます。
-
-- `user_id` (string): メッセージを投稿したユーザーまたはボットのID。
-  - 人間のユーザーによるメッセージの場合、これはSlackのユーザーID（例: `U12345ABC`）です。
-  - ボットによるメッセージの場合、これはSlackのボットID（例: `B012345DEF`）です。
-- `user_name` (string, optional): ユーザーまたはボットの表示名。
-  - 人間のユーザーの場合、通常は表示名または本名です。
-  - ボットのメッセージの場合、通常はボットに設定されたユーザー名です。
-- `post_type` (string): 投稿者の種別を示します。
-  - `"user"`: メッセージは人間のユーザーによって投稿されました。
-  - `"bot"`: メッセージはボットによって投稿されました。
-- `timestamp` (string): メッセージのタイムスタンプ（RFC3339形式、例: `2025-08-15T10:30:00Z`）。
-- `timestamp_unix` (string): メッセージのタイムスタンプ（Unixエポック形式、例: `1755255897.650199`）。これはSlackから提供される生のタイムスタンプです。
-- `text` (string): メッセージの本文。
-- `files` (array of objects, optional): メッセージに添付されたファイルの配列。キーはファイルがあるときだけ現れ、空の配列になることはありません。
-  - `id` (string): ファイルのID。
-  - `name` (string): ファイルの元の名前。
-  - `mimetype` (string): ファイルのMIMEタイプ（例: `image/jpeg`、`text/plain`）。
-  - `local_path` (string, optional): エクスポート時に `--output-files` が指定された場合、ファイルがダウンロードされたローカルパス。
-- `thread_timestamp_unix` (string, optional): メッセージがスレッドに属するときに現れます。返信ではスレッドの親メッセージのUnixタイムスタンプ、親メッセージ自身では自分の `timestamp_unix` と同じ値です。
-- `is_reply` (bool): メッセージがスレッド内の返信である場合は `true`、そうでない場合は `false`（スレッドの親は `false`）。
-
-stail と scli が出力する `attachments`（旧形式のリッチ添付）と `blocks`（Block Kit の JSON）は、scat は出力しません。
-
-## JSON出力の例
-
-この例には、通常のメッセージ、ファイルを含むメッセージ、スレッドを開始するメッセージ、およびそのスレッドへの返信が含まれています。
+`scat channel export <channel>` はscli `854e6a0` のJSONモデルに準拠します。
+`testdata/export/` のgolden fixtureで仕様と意図的なbroadcast重複除去を固定します。
+認証はbot専用なので、閲覧範囲はscliと異なることがあります。
 
 ```json
 {
-  "export_timestamp": "2025-08-15T11:03:53Z",
-  "channel_name": "#example-channel",
-  "messages": [
-    {
-      "user_id": "U12345ABC",
-      "user_name": "John Doe",
-      "post_type": "user",
-      "timestamp": "2025-08-14T10:00:00Z",
-      "timestamp_unix": "1755168000.000000",
-      "text": "Hello, world!",
-      "is_reply": false
-    },
-    {
-      "user_id": "B012345DEF",
-      "user_name": "MyBot",
-      "post_type": "bot",
-      "timestamp": "2025-08-14T10:05:00Z",
-      "timestamp_unix": "1755168300.000000",
-      "text": "This is a bot message.",
-      "files": [
-        {
-          "id": "F98765XYZ",
-          "name": "report.pdf",
-          "mimetype": "application/pdf",
-          "local_path": "./scat-export-example-channel-20250815T110353Z/F98765XYZ_report.pdf"
-        }
-      ],
-      "is_reply": false
-    },
-    {
-      "user_id": "U67890GHI",
-      "user_name": "Jane Smith",
-      "post_type": "user",
-      "timestamp": "2025-08-14T10:10:00Z",
-      "timestamp_unix": "1755168600.000000",
-      "text": "Let's start a thread here. This is the parent message.",
-      "thread_timestamp_unix": "1755168600.000000",
-      "is_reply": false
-    },
-    {
-      "user_id": "U12345ABC",
-      "user_name": "John Doe",
-      "post_type": "user",
-      "timestamp": "2025-08-14T10:12:00Z",
-      "timestamp_unix": "1755168720.000000",
-      "text": "This is a reply to Jane's message.",
-      "thread_timestamp_unix": "1755168600.000000",
-      "is_reply": true
-    }
-  ]
+  "export_timestamp": "2026-09-22T00:00:00Z",
+  "channel_name": "#general",
+  "messages": [{
+    "user_id": "U0123456789",
+    "user_name": "Example",
+    "post_type": "user",
+    "timestamp": "2024-01-01T00:00:00Z",
+    "timestamp_unix": "1704067200.123456",
+    "text": "Original <@U0123456789> text",
+    "files": [],
+    "is_reply": false
+  }]
 }
 ```
+
+| フィールド | 意味 |
+|------------|------|
+| `export_timestamp` | UTC RFC3339のexport時刻 |
+| `channel_name` | `#name`。取得失敗時は警告と `#ID` |
+| `messages` | 配列。空履歴も `[]` |
+| `user_id` | APIの `user`、なければ `bot_id` |
+| `user_name` | botのusernameまたはユーザー表示名。補完失敗時はID、空なら省略 |
+| `post_type` | `bot_id` があれば `bot`、なければ `user` |
+| `timestamp` | UTC RFC3339（秒単位） |
+| `timestamp_unix` | 元のSlack timestamp文字列。マイクロ秒を保持 |
+| `text` | メンションを含むAPIの原文 |
+| `files` | 常に配列 |
+| `thread_timestamp_unix` | 元の `thread_ts`。なければ省略。親は自分自身を参照することがある |
+| `is_reply` | `thread_ts` が存在し、自分の `ts` と異なる |
+| `attachments` | legacy rich attachment。なければ省略 |
+| `blocks` | raw JSON配列。明示的な空配列も配列として保持 |
+
+各fileは `id`、`name`、`mimetype` と、**常に存在する** `local_path` を含みます。
+`local_path` は保存成功後の絶対パス、それ以外は `""` です。
+private download URLと資格情報はexportに含めません。
+
+attachmentsは `fallback`、`color`、`pretext`、`title`、`title_link`、`text`、
+`fields`、`footer`、`image_url` を保持します。空の任意項目は省略します。
+各fieldは `title`、`value`、`short` を含みます。
+
+## 選択と順序
+
+`--start` / `--end` は親を選ぶ排他的なRFC3339境界です。offset・小数秒も指定できます。
+startはendより前である必要があります。Slackのマイクロ秒単位に合わせ、必要な場合だけ
+startを切り下げ、endを切り上げます。マイクロ秒ちょうどの境界はそのまま排他的に扱います。
+これによりナノ秒単位のend未満のメッセージを落としません。
+
+historyの親を古い順に並べ、その直後に返信を古い順に置きます。
+返信には親選択の期間を適用しないため、期間外の返信も含まれます。
+選択されない古い親の新しい返信を網羅する機能ではありません。
+broadcast返信は選択された親の下、または親が選択されなければhistoryの項目として一度だけ出力します。
+短いページでもcursorを追い、不正・循環cursorは黙って打ち切らずエラーにします。
+
+## 失敗と保存ファイル
+
+history/repliesの失敗はJSON出力前にexport全体を中止し、既存の出力ファイルを保持します。
+名前補完は警告とIDへのfallbackを許します。添付保存失敗ではmetadataと空の `local_path` を保持します。
+`--quiet` でもこれらの警告は消しません。
+
+`--save-dir` は保存先ディレクトリを固定し、`<fileID>_<basename>` にatomicに保存します。
+パストラバーサル名と既存symlinkは拒否します。サイズ上限はmetadataと実受信バイトの両方に適用します。
+中断時は一時ファイルだけを削除します。後段の失敗前に保存した添付は残ることがあります。
+認証redirect、HTTP 200のログインHTML、正当なHTML/JSON添付、判別不能な応答を別々に検査します。
+詳細はADRのファイル送受信の受入条件を参照してください。
+
+export全体をメモリに集めてから表示するため、メモリ使用量は履歴量に比例します。
+`--output -` はstdoutへ書き、broken pipeはエラーです。
+`--output <path>` は表示データの書込成功後にatomicに置き換えます。
+`--format text` は同じモデルの人向け表示で、完全なデータ交換形式と既定値はJSONです。

@@ -1,112 +1,53 @@
-# scat Slack セットアップガイド
+# Slackボットの設定
 
-`scat` をSlackプロバイダーで使用するには、Slackアプリを作成し、適切な権限（スコープ）を持つボットトークンを取得する必要があります。このガイドでは、そのプロセスを順を追って説明します。
+[English](../en/SLACK_SETUP.md)
 
----
+bot userを持つSlack appを作成・設定し、必要な操作のscopeを付与してworkspaceへinstall/reinstallします。
+bot tokenは `scat profile set token` の非表示端末入力、またはサービスの `SCAT_TOKEN` から渡します。
+トークンをコマンド引数にしないでください。設定とserver modeは[README](../../README.ja.md)を参照してください。
+scliのユーザー認証とは明確に分離しています。
 
-### ステップ1: Slackアプリの作成
+| 操作 | scope・アクセス |
+|------|-----------------|
+| 投稿 | `chat:write`。許可された名前・アイコン変更時だけ `chat:write.customize` |
+| ユーザーIDへのDM | `im:write` |
+| channel名解決・upload参加確認 | `channels:read` / `groups:read`。DM infoは `im:read` / `mpim:read` |
+| ユーザー名解決・一覧 | `users:read` |
+| グループ名解決・メンバー展開 | `usergroups:read` |
+| history・replies export | 会話種別に応じ `channels:history`、`groups:history`、`im:history`、`mpim:history` |
+| ファイルdownload | `files:read` と対象ファイルへのアクセス |
+| ファイルupload | `files:write` と宛先解決・参加確認の権限 |
+| 投稿のためのpublic channel参加 | `channels:join` |
+| 作成・topic・purpose | publicは `channels:manage`、privateは `groups:write` |
+| 招待 | publicは `channels:manage` / `channels:write.invites`、privateは `groups:write` / `groups:write.invites` |
 
-1.  [Slack APIサイト](https://api.slack.com/apps) にアクセスし、アカウントにログインします。
+全scopeをまとめて要求する表ではありません。channel/userの明示的IDなら名前一覧APIを避けます。
+uploadはchannel IDでも参加確認のread権限が必要です。private channelにはbotを招待してください。
+scatはexportのための自動参加や、ユーザー権限へのfallbackを行いません。
 
-2.  **「Create New App」** ボタンをクリックします。
+外部操作前に呼び出しごとに `auth.test` で `bot_id` と `team_id` を確認します。
+help・ローカル設定・dry-runは認証要求を送りません。現行のreplies資料にはchannelとDMのbot scopeが
+記載されています。過去のDM限定という前提や、資料だけで実権限を確認できたという前提を置かず、
+リリース前にinstall済みappの実際のアクセスを確認してください。
 
-3.  表示されるダイアログで、**「From scratch」** を選択します。
+## ファイル送受信の注意点
 
-4.  アプリ名（例: `My Scat Bot`）を入力し、インストールしたいワークスペースを選択して、**「Create App」** をクリックします。
+uploadは `files.getUploadURLExternal`、返されたHTTPS URLへのraw bytes POST、
+`files.completeUploadExternal` の順です。バイト転送にはAPI Bearer/Cookieを付けず、redirectを拒否します。
+完了処理にはchannelを明示し、threadへのuploadでは親timestampを使います。
+完了処理は一度だけで、再試行しません。宛先への参加が不足する場合、付与scopeでpublic channelへ
+参加できるケースを除き、割当前に失敗します。ファイル共有のbroadcastはありません。
 
-**注:** 以下に記載されているアプリアイコンと説明文の提案は任意です。ご自身の好みに合わせて自由に設定してください。このドキュメントは、設定に迷った際の参考としてご活用ください。
+downloadはHTTP 200でもログインHTMLが返ることがあります。Bearer送信済みで `files:read` 不足のケースも
+含みます。Goは通常、兄弟hostへのredirectでAuthorizationを落とすため、scatは検証済みSlackドメイン内だけ
+で再付与し、外部hostやHTTPS降格先には送りません。権限不足を直すために転送範囲の制約を外さないでください。
+名前補完・ファイル保存の警告はexport metadataを保持し、必須のhistory/replies取得失敗は全体エラーになります。
 
-### Display Information
+実Slackでのpost/upload/downloadテストには、明示的に利用を許可されたfixture workspace/channelが必要です。
+オフラインテストの成功は実権限・配信を確認したことにはなりません。
 
-Slackアプリの「Display Information」セクションには、以下の説明文を設定してください。
-
-#### Short description
-
-SlackをCLIから操作。投稿、ログエクスポート、チャンネル管理などを効率化します。
-
-#### Long description
-
-Scatは、Slackとの連携を強化するための強力なコマンドラインインターフェース（CLI）ツールです。これにより、ユーザーはターミナルから直接、メッセージの投稿、チャンネルリストの取得、ログのエクスポート、ファイルのアップロード、プロファイルの管理といった多様なSlack操作を効率的に実行できます。開発者やパワーユーザー向けに設計されており、スクリプトによる自動化や日常業務の簡素化に貢献します。
-
----
-
-### アプリのアイコン
-
-Slackアプリケーションのアイコンとして、`docs/` ディレクトリにある `scat_icon.png` をご使用いただけます。
-
----
-
-### ステップ2: 権限（スコープ）の追加
-
-アプリの管理画面に移動したら、`scat` が必要とする権限を追加する必要があります。
-
-1.  左側のサイドバーから **「OAuth & Permissions」** を選択します。
-
-2.  **「Scopes」** セクションまでスクロールします。
-
-3.  **「Bot Token Scopes」** の下にある **「Add an OAuth Scope」** ボタンをクリックし、以下の各スコープを追加します。
-
-    **コアスコープ（投稿用）:**
-    *   `chat:write`: パブリックチャンネルにメッセージを投稿するために必要です。
-    *   `files:write`: ファイルをアップロードするために必要です。
-    *   `channels:join`: 投稿前にボットが自動的にパブリックチャンネルに参加するために必要です。
-
-    **DM・ユーザースコープ（DM送信とユーザー情報用）:**
-    *   `im:write`: ユーザーとのDMチャンネルを開くために必要です。
-    *   `users.read`: メンション名（例: `@someuser`）でのDM送信や、ログエクスポート時のユーザー名解決に必要です。
-
-    **オプションスコープ（追加機能用）:**
-    *   `channels:manage`: `channel create` コマンドでパブリックチャンネルを作成するために必要です。
-    *   `groups:write`: `channel create` コマンドでプライベートチャンネルを作成するために必要です。
-    *   `channels:read`: `channel list` コマンドに必要です。
-    *   `groups:read`: プライベートチャンネルを表示するための `channel list` コマンドに必要です。
-    *   `chat:write.customize`: `--username` または `--iconemoji` フラグを使用してボットの名前やアイコンを上書きしたい場合に必要です。
-    *   `usergroups:read`: ユーザーグループ名を解決して招待するために必要です。
-
-    **エクスポートスコープ（`export log` コマンド用）:**
-    *   `channels:history`: パブリックチャンネルからメッセージ履歴を読み取るために必要です。
-    *   `groups:history`: プライベートチャンネルからメッセージ履歴を読み取るために必要です。
-    *   `files:read`: 添付ファイルをダウンロードするために必要です。
-
-### ステップ3: ワークスペースへのアプリのインストール
-
-スコープを追加したら、トークンを生成するためにアプリをワークスペースにインストールできます。
-
-1.  「OAuth & Permissions」ページの上部までスクロールします。
-
-2.  **「Install to Workspace」** ボタンをクリックします。
-
-3.  次の画面で、**「Allow」** をクリックしてアプリを承認します。
-
-### ステップ4: ボットトークンの取得
-
-インストール後、ページが更新され、**「Bot User OAuth Token」** が表示されます。
-
-*   `xoxb-` で始まるこのトークンをコピーします。これが `scat` を設定するために使用するトークンです。
-
-### ステップ5: scatの設定
-
-コピーしたトークンを使用して、`scat` プロファイルを作成または更新します。
-
-```bash
-# "my-slack" という名前の新しいプロファイルを作成
-scat profile add my-slack-workspace --provider slack --channel "#general"
-
-# 上記コマンドの実行後、トークンの入力を求められます。
-# ステップ4でコピーした "xoxb-..." トークンを貼り付けてEnterを押します。
-Enter Token (will not be displayed): [ここにトークンを貼り付け]
-```
-
-これでセットアップは完了です。
-
-### ステップ6: チャンネルへのボットの招待
-
-ボットがチャンネル（特にプライベートチャンネル）に投稿できるようにするには、そのチャンネルのメンバーである必要があります。
-
-*   投稿したい各Slackチャンネルで、以下のコマンドを使用してボットを招待します。
-
-    ```
-    /invite @<あなたのアプリ名>
-    ```
-
-これで `scat` を使用してSlackに投稿する準備ができました！
+参照: [auth.test](https://docs.slack.dev/reference/methods/auth.test/)、
+[replies](https://docs.slack.dev/reference/methods/conversations.replies/)、
+[upload割当](https://docs.slack.dev/reference/methods/files.getUploadURLExternal/)、
+[upload完了](https://docs.slack.dev/reference/methods/files.completeUploadExternal/)、
+[ADRのscope一覧](adr/0001-slack-bot-renewal.ja.md)。

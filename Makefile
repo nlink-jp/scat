@@ -22,7 +22,7 @@ _CACHE_INIT := $(shell mkdir -p "$(GOMODCACHE)" "$(GOCACHE)" "$(GOTMPDIR)")
 # darwin ships arm64 only (no amd64, no universal). linux/windows keep their matrix.
 PLATFORMS := darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: build build-all package verify-release test lint check clean help
+.PHONY: build build-all package verify-release test lint check fmt vulncheck clean help
 
 ## build: Build binary for the current OS/Arch → dist/scat
 build:
@@ -96,6 +96,14 @@ lint:
 ## check: lint + test
 check: lint test
 
+## fmt: Format Go packages using the project-local caches
+fmt:
+	go fmt ./...
+
+## vulncheck: Check reachable vulnerabilities (requires govulncheck)
+vulncheck:
+	govulncheck ./...
+
 ## clean: Remove dist/ and caches
 clean:
 	rm -rf $(OUTPUT_DIR) .cache
@@ -108,5 +116,5 @@ help:
 # `make brew` generates this formula from the built darwin-arm64 zip into the
 # local nlink-jp/homebrew-tap checkout. The package target is unchanged.
 BREW_KIND := formula
-BREW_DESC := Send content to Slack and other services from your terminal
+BREW_DESC := Slack CLI for services using bot credentials
 include scripts/release-brew.mk

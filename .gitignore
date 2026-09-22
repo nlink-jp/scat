@@ -40,8 +40,7 @@ dist/
 # External files
 .external/**
 
-# Test data
-testdata/
+# Synthetic export contract fixtures are tracked.
 
 # IDE
 .vscode/

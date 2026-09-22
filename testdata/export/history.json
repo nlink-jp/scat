@@ -1,0 +1,6 @@
+[
+ {"ts":"1704067202.000002","user":"U1","text":"ordinary <@U2>"},
+ {"ts":"1704067205.123456","user":"U2","text":"reply outside parent interval","thread_ts":"1704067200.000001","subtype":"thread_broadcast"},
+ {"ts":"1704067200.000001","user":"U1","text":"parent","thread_ts":"1704067200.000001","reply_count":1,"files":[{"id":"F1","name":"report.txt","mimetype":"text/plain","url_private_download":"https://files.slack.com/example"}],"attachments":[{"fallback":"summary","title":"Report","fields":[{"title":"state","value":"ready","short":true}]}],"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"rich"}}]},
+ {"ts":"1704067203.000003","bot_id":"B1","user":"UBOT","username":"service","text":"bot","blocks":[]}
+]

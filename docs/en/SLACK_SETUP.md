@@ -1,112 +1,59 @@
-# scat Slack Setup Guide
+# Slack bot setup
 
-To use `scat` with the Slack provider, you need to create a Slack App and get a Bot Token with the appropriate permissions (scopes). This guide will walk you through the process.
+[日本語](../ja/SLACK_SETUP.ja.md)
 
----
+Create or configure a Slack app with a bot user, grant scopes for the operations
+you need, and install/reinstall it in the workspace. Use its bot token through
+`scat profile set token` (hidden terminal input) or the service's `SCAT_TOKEN`.
+Do not pass tokens in command arguments. See [README](../../README.md) for config
+and server mode; scli user authentication is deliberately separate.
 
-### Step 1: Create a Slack App
+| Operation | Scopes / access |
+|-----------|-----------------|
+| Post | `chat:write`; `chat:write.customize` only for authorized custom name/icon |
+| DM by user ID | `im:write` |
+| Resolve channel names / inspect upload membership | `channels:read` / `groups:read`; DM info uses `im:read` or `mpim:read` |
+| Resolve user names / list users | `users:read` |
+| Resolve groups / expand group members | `usergroups:read` |
+| Export history and replies | `channels:history`, `groups:history`, `im:history`, `mpim:history` by conversation type |
+| Download files | `files:read` and access to the file |
+| Upload files | `files:write`, plus destination resolution/membership access |
+| Join public channels for writing | `channels:join` |
+| Create / topic / purpose | `channels:manage` (public) / `groups:write` (private) |
+| Invite | Public: `channels:manage` or `channels:write.invites`; private: `groups:write` or `groups:write.invites` |
 
-1.  Go to the [Slack API site](https://api.slack.com/apps) and log in to your account.
+This table is not a requirement to grant all scopes. Explicit channel/user IDs
+avoid name-list APIs. Upload membership inspection still requires read access,
+even with a channel ID. A bot must be invited to private channels. scat never
+joins a channel to export history and never falls back to a user identity.
 
-2.  Click the **"Create New App"** button.
+Each invocation verifies `bot_id` and `team_id` using `auth.test` before remote
+operations. Help, local configuration and dry-run make no authentication request.
+The current Slack replies reference lists bot scopes for channels and DMs; verify
+the installed app's actual access before release instead of assuming historical
+DM-only restrictions or assuming documentation proves live access.
 
-3.  In the dialog that appears, select **"From scratch"**.
+## File-transfer pitfalls
 
-4.  Enter an app name (e.g., `My Scat Bot`), select the workspace you want to install it to, and click **"Create App"**.
+Upload uses `files.getUploadURLExternal`, raw-byte POST to the returned HTTPS
+URL, then `files.completeUploadExternal`. Byte transfer carries no API Bearer
+or cookies; redirects are refused. A channel is explicitly supplied to completion;
+a thread upload uses the parent timestamp. Completion is one-shot and not retried.
+Missing destination membership fails before allocation unless a public channel can
+be joined with the granted scope. File-share broadcast is not available.
 
-**Note:** The app icon and description suggestions provided below are optional. You are free to use your own preferred icon and descriptions. This documentation serves as a reference if you need guidance.
+Downloads can return a login HTML page with HTTP 200, including with Bearer sent
+but `files:read` missing. Go normally strips Authorization on sibling-host
+redirects; scat preserves it only within the verified Slack domain, never to
+external hosts or on HTTPS downgrade. Do not remove containment checks to solve a
+permission problem. Name/file warnings retain export metadata, while mandatory
+history/reply failures are fatal.
 
-### Display Information
+Live post/upload/download tests require an explicitly authorized fixture workspace
+and channel. Offline tests do not establish real Slack permissions or delivery.
 
-Please set the following descriptions in the "Display Information" section of your Slack app.
-
-#### Short description
-
-CLI tool to streamline Slack operations: post messages, export logs, manage channels.
-
-#### Long description
-
-Scat is a powerful Command Line Interface (CLI) tool designed to enhance your interaction with Slack. It enables users to efficiently perform various Slack operations directly from their terminal, including posting messages, retrieving channel lists, exporting logs, uploading files, and managing profiles. Built for developers and power users, Scat helps automate tasks through scripting and simplifies daily workflows.
-
----
-
-### App Icon
-
-You can use the provided `scat_icon.png` located in the `docs/` directory as the app icon for your Slack application.
-
----
-
-### Step 2: Add Permissions (Scopes)
-
-Once you are on the app's management screen, you need to add the permissions that `scat` requires.
-
-1.  From the left sidebar, select **"OAuth & Permissions"**.
-
-2.  Scroll down to the **"Scopes"** section.
-
-3.  Under **"Bot Token Scopes"**, click the **"Add an OAuth Scope"** button and add each of the following scopes:
-
-    **Core Scopes (for posting):**
-    *   `chat:write`: Required to post messages to public channels.
-    *   `files:write`: Required to upload files.
-    *   `channels:join`: Required for the bot to automatically join public channels before posting.
-
-    **DM & User Scopes (for Direct Messages and user info):**
-    *   `im:write`: Required to open a direct message channel with a user.
-    *   `users.read`: Required to find a user by their @mention name (for DMs) and to resolve user IDs to names (for log exports).
-
-    **Optional Scopes (for extra features):**
-    *   `channels:manage`: Required for the `channel create` command to create public channels.
-    *   `groups:write`: Required for the `channel create` command to create private channels.
-    *   `channels:read`: Required for the `channel list` command.
-    *   `groups:read`: Required for the `channel list` command to see private channels.
-    *   `chat:write.customize`: Required if you want to override the bot's name or icon using the `--username` or `--iconemoji` flags.
-    *   `usergroups:read`: Required to resolve user group names for invitations.
-
-    **Export Scopes (for `export log` command):**
-    *   `channels:history`: Required to read message history from public channels.
-    *   `groups:history`: Required to read message history from private channels.
-    *   `files:read`: Required to download attached files.
-
-### Step 3: Install the App to Your Workspace
-
-After adding the scopes, you can install the app to your workspace to generate a token.
-
-1.  Scroll back to the top of the "OAuth & Permissions" page.
-
-2.  Click the **"Install to Workspace"** button.
-
-3.  On the next screen, click **"Allow"** to authorize the app.
-
-### Step 4: Get Your Bot Token
-
-After installation, the page will refresh, and you will see a **"Bot User OAuth Token"**.
-
-*   Copy this token, which starts with `xoxb-`. This is the token you will use to configure `scat`.
-
-### Step 5: Configure scat
-
-Use the token you just copied to create or update a `scat` profile.
-
-```bash
-# Create a new profile named "my-slack"
-scat profile add my-slack-workspace --provider slack --channel "#general"
-
-# After running the command above, you will be prompted to enter your token.
-# Paste the "xoxb-..." token you copied in Step 4 and press Enter.
-Enter Token (will not be displayed): [paste your token here]
-```
-
-Your setup is now complete.
-
-### Step 6: Invite the Bot to Channels
-
-For the bot to be able to post in a channel (especially private channels), it must be a member of that channel.
-
-*   In each Slack channel you want to post to, invite the bot using the following command:
-
-    ```
-    /invite @<your-app-name>
-    ```
-
-You are now ready to post to Slack using `scat`!
+References: [auth.test](https://docs.slack.dev/reference/methods/auth.test/),
+[replies](https://docs.slack.dev/reference/methods/conversations.replies/),
+[upload allocation](https://docs.slack.dev/reference/methods/files.getUploadURLExternal/),
+[upload completion](https://docs.slack.dev/reference/methods/files.completeUploadExternal/),
+[ADR scope inventory](adr/0001-slack-bot-renewal.md).

@@ -1,94 +1,84 @@
-# Export Log Data Format
+# Export data format (v2)
 
-The `scat export log` command outputs channel message history in a structured JSON format.
+[日本語](../ja/EXPORT_FORMAT.ja.md)
 
-## Top level
-
-- `export_timestamp` (string): When the export was made, in UTC, RFC3339 (e.g., `2025-08-15T11:03:53Z`).
-- `channel_name` (string): The channel exactly as it was given to `--channel` (e.g., `#example-channel`).
-- `messages` (array of objects): The messages, one entry each.
-
-## Messages
-
-Each entry in the `messages` array represents a single message and contains the following fields:
-
-- `user_id` (string): The ID of the user or bot who posted the message.
-  - For messages from human users, this is the Slack User ID (e.g., `U12345ABC`).
-  - For messages from bots, this is the Slack Bot ID (e.g., `B012345DEF`).
-- `user_name` (string, optional): The display name of the user or bot.
-  - For human users, this is typically their display name or real name.
-  - For bot messages, this is usually the bot's configured username.
-- `post_type` (string): Indicates the type of poster.
-  - `"user"`: The message was posted by a human user.
-  - `"bot"`: The message was posted by a bot.
-- `timestamp` (string): The message's timestamp in RFC3339 format (e.g., `2025-08-15T10:30:00Z`).
-- `timestamp_unix` (string): The message's timestamp in Unix epoch format (e.g., `1755255897.650199`). This is the raw timestamp provided by Slack.
-- `text` (string): The content of the message.
-- `files` (array of objects, optional): The files attached to the message. The key is present only when the message has files; it is never an empty array.
-  - `id` (string): The ID of the file.
-  - `name` (string): The original name of the file.
-  - `mimetype` (string): The MIME type of the file (e.g., `image/jpeg`, `text/plain`).
-  - `local_path` (string, optional): The local path where the file was downloaded, if `--output-files` was specified during export.
-- `thread_timestamp_unix` (string, optional): Present when the message belongs to a thread. On a reply it is the Unix timestamp of the thread's parent message; on the parent itself it equals its own `timestamp_unix`.
-- `is_reply` (bool): `true` if the message is a reply within a thread, otherwise `false` (a thread's parent is `false`).
-
-`attachments` (legacy rich attachments) and `blocks` (Block Kit JSON), which stail and scli write, are not written by scat.
-
-## Example JSON Output
-
-This example includes a regular message, a message with a file, a message that starts a thread, and a reply to that thread.
+`scat channel export <channel>` follows scli `854e6a0`'s JSON model. The golden
+fixtures in `testdata/export/` pin the contract and the deliberate correction of
+broadcast duplicates. Authentication is bot-only, so visibility can differ from scli.
 
 ```json
 {
-  "export_timestamp": "2025-08-15T11:03:53Z",
-  "channel_name": "#example-channel",
-  "messages": [
-    {
-      "user_id": "U12345ABC",
-      "user_name": "John Doe",
-      "post_type": "user",
-      "timestamp": "2025-08-14T10:00:00Z",
-      "timestamp_unix": "1755168000.000000",
-      "text": "Hello, world!",
-      "is_reply": false
-    },
-    {
-      "user_id": "B012345DEF",
-      "user_name": "MyBot",
-      "post_type": "bot",
-      "timestamp": "2025-08-14T10:05:00Z",
-      "timestamp_unix": "1755168300.000000",
-      "text": "This is a bot message.",
-      "files": [
-        {
-          "id": "F98765XYZ",
-          "name": "report.pdf",
-          "mimetype": "application/pdf",
-          "local_path": "./scat-export-example-channel-20250815T110353Z/F98765XYZ_report.pdf"
-        }
-      ],
-      "is_reply": false
-    },
-    {
-      "user_id": "U67890GHI",
-      "user_name": "Jane Smith",
-      "post_type": "user",
-      "timestamp": "2025-08-14T10:10:00Z",
-      "timestamp_unix": "1755168600.000000",
-      "text": "Let's start a thread here. This is the parent message.",
-      "thread_timestamp_unix": "1755168600.000000",
-      "is_reply": false
-    },
-    {
-      "user_id": "U12345ABC",
-      "user_name": "John Doe",
-      "post_type": "user",
-      "timestamp": "2025-08-14T10:12:00Z",
-      "timestamp_unix": "1755168720.000000",
-      "text": "This is a reply to Jane's message.",
-      "thread_timestamp_unix": "1755168600.000000",
-      "is_reply": true
-    }
-  ]
+  "export_timestamp": "2026-09-22T00:00:00Z",
+  "channel_name": "#general",
+  "messages": [{
+    "user_id": "U0123456789",
+    "user_name": "Example",
+    "post_type": "user",
+    "timestamp": "2024-01-01T00:00:00Z",
+    "timestamp_unix": "1704067200.123456",
+    "text": "Original <@U0123456789> text",
+    "files": [],
+    "is_reply": false
+  }]
 }
 ```
+
+| Field | Meaning |
+|-------|---------|
+| `export_timestamp` | UTC RFC3339 export time |
+| `channel_name` | `#name`, falling back to `#ID` with a warning |
+| `messages` | Array, including `[]` for empty history |
+| `user_id` | API `user`; otherwise `bot_id` |
+| `user_name` | Bot username or resolved user name; ID fallback on user lookup failure; omitted if empty |
+| `post_type` | `bot` when `bot_id` exists, otherwise `user` |
+| `timestamp` | UTC RFC3339 (seconds) |
+| `timestamp_unix` | Original Slack timestamp string, preserving microseconds |
+| `text` | Original API text, including mentions |
+| `files` | Always an array |
+| `thread_timestamp_unix` | Original `thread_ts`; omitted if absent; a parent can reference itself |
+| `is_reply` | `thread_ts` exists and differs from message `ts` |
+| `attachments` | Legacy rich attachments, omitted if absent |
+| `blocks` | Raw JSON array; explicit empty arrays remain arrays |
+
+Each file contains `id`, `name`, `mimetype`, and **always** `local_path`.
+`local_path` is an absolute path after successful saving, and `""` otherwise.
+Private download URLs and credentials never enter the export.
+
+Attachments preserve `fallback`, `color`, `pretext`, `title`, `title_link`, `text`,
+`fields`, `footer`, `image_url`. Empty optional values are omitted. Each field
+contains `title`, `value`, `short`.
+
+## Selection and ordering
+
+`--start` / `--end` are exclusive RFC3339 parent-selection bounds. Offsets and
+fractional seconds are accepted. Start must precede end. For Slack's microsecond
+granularity, start rounds down and end rounds up only when necessary; exact
+microsecond bounds remain exclusive. This avoids dropping messages below a
+nanosecond end bound.
+
+History parents appear oldest first, each immediately followed by its replies,
+also oldest first. Replies are fetched without the parent-selection bounds.
+The result may therefore contain replies outside the interval. New activity under
+an old, unselected parent is not exhaustively discovered. A broadcast reply is
+exported once: under its selected parent, or as a history item if that parent was
+not selected. Pagination follows cursors even on short pages; invalid/repeated
+cursors fail rather than silently truncating.
+
+## Failures and saved files
+
+History/reply failures abort before JSON output; existing output files remain
+untouched. Names may fall back to IDs with warnings. Failed attachment downloads
+retain metadata and empty `local_path`. `--quiet` does not suppress these warnings.
+
+`--save-dir` stores files as `<fileID>_<basename>` using an anchored directory and
+atomic replacement. Traversal names and existing symlinks are refused. Size limits
+cover both metadata and actual transferred bytes. Interrupted saves remove only
+the temporary file. Earlier completed downloads can remain after a later failure.
+Credential redirects, login HTML at HTTP 200, legitimate HTML/JSON attachments,
+and ambiguous responses are checked separately; see the ADR's file-transfer cases.
+
+The complete export is collected in memory before rendering; memory use grows
+with history size. `--output -` writes stdout; a broken pipe returns an error.
+`--output <path>` replaces the file atomically after rendering succeeds.
+`--format text` displays the same model for human reading; JSON is the full data
+interchange format and default.

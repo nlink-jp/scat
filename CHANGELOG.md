@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — breaking v2 renewal
+
+- Make scat Slack-only and bot-authenticated; remove runtime provider registration,
+  capabilities, mock/test providers, endpoint fields and SCAT_PROVIDER. Preserve
+  named bot profiles; reject legacy configuration with explicit migration guidance.
+- Replace startup-wide resolution with invocation-scoped dependencies, lazy ID/name
+  resolution, bot identity verification and environment-only service configuration.
+- Align export with scli: rich attachments/blocks, raw text, explicit empty arrays,
+  always-present local_path, parent/reply grouping, cursor pagination and broadcast
+  deduplication. Required retrieval failures abort; optional failures retain metadata.
+- Rename export and flags, add result JSON and timestamps, wire thread/unfurl fields,
+  preserve stdin streaming with bounded batches and propagate failures/cancellation.
+- Stage uploads with bounded memory, verify membership before allocation and never
+  replay completion. Confine download credentials, validate HTML/JSON responses,
+  enforce byte limits and atomically replace anchored attachment targets.
+- Write credential files atomically at 0600 and preserve zero-as-unlimited limits.
+  Require Go 1.25+ for anchored rename. Add synthetic export fixtures, injected
+  transport/command tests and make fmt / make vulncheck targets.
+
+
 ### Fixed
 
 - **`make verify-release` now fails closed.** Its last block chained unzip, the
@@ -19,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Record accepted [ADR-0001](docs/en/adr/0001-slack-bot-renewal.md) and its
+  Japanese mirror; replace the v1 setup/build/export guides with v2 contracts,
+  migration steps and project-specific agent guidance.
 - `docs/{en,ja}/EXPORT_FORMAT` describe what `scat export log` writes: the
   top-level `export_timestamp` and `channel_name`, that `files` is left out rather
   than empty, that a thread's parent carries `thread_timestamp_unix` too, and that

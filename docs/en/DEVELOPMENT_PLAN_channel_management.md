@@ -1,5 +1,7 @@
 # Development Plan: Channel Management Features
 
+> Historical v1 plan. Current behavior is specified in [ADR-0001](adr/0001-slack-bot-renewal.md) and [README](../../README.md).
+
 This document outlines the development plan for implementing new channel creation and user invitation features in `scat`.
 
 ## 1. Features

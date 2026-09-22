@@ -1,6 +1,10 @@
 # Development Plan
 
-This document outlines the development status and future roadmap for `scat`.
+This document preserves the historical development plan for `scat`.
+The accepted renewal design is [ADR-0001](adr/0001-slack-bot-renewal.md), which
+replaces the multi-provider roadmap with a Slack-only bot CLI and scli export
+parity. The milestones and future-provider ideas below are historical context,
+not the active plan.
 
 ---
 

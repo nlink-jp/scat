@@ -1,387 +1,183 @@
-# scat: A General-Purpose Command-Line Content Poster
+# scat
 
-<a href="https://flatt.tech/oss/gmo/trampoline" target="_blank"><img src="https://flatt.tech/assets/images/badges/gmo-oss.svg" height="24px"/></a>
+[日本語](README.ja.md)
 
-`scat` is a versatile command-line interface for sending content from files or standard input to a configured destination, such as Slack. It is inspired by `slackcat` but is designed to be more generic and extensible.
+A Slack CLI for services using **bot credentials**. `scli` is the sibling CLI for
+people using user credentials. scat retains multiple workspace profiles while
+removing the unused multi-service provider layer.
 
----
+This branch implements the breaking **v2 renewal**; it is not a published v2
+release. See [ADR-0001](docs/en/adr/0001-slack-bot-renewal.md) and
+[migration](#migration-from-v1).
 
-## Features
+## Setup
 
-- **Post text messages**: Send content from arguments, files, or stdin.
-- **Send Direct Messages (DMs)**: Send messages or files directly to users by their ID or mention name.
-- **Upload files**: Upload files from a path or stdin.
-- **Stream content**: Continuously stream from stdin, posting messages periodically.
-- **Export channel logs**: Export message history from a channel to a structured JSON file or stdout.
-- **List channels and users**: List channels and users with their IDs in human-readable or JSON format.
-- **Invite users to channels**: Invite users or user groups to an existing channel.
-- **Profile management**: Configure multiple destinations and switch between them easily.
-- **Extensible providers**: Currently supports Slack and a mock provider for testing.
+Requires Go 1.25+ to build. Download published versions from
+[Releases](https://github.com/nlink-jp/scat/releases), or build this checkout:
 
-## Installation
-
-Download the latest binary for your system from the [Releases](https://github.com/nlink-jp/scat/releases) page.
-
-Alternatively, you can build from source:
-
-```bash
-make build
+```sh
+make build                  # dist/scat
+make check                  # go vet ./... + go test ./...
+scat config init
+scat profile set token      # hidden terminal prompt; never pass a token argument
+scat profile set channel C0123456789
 ```
 
-## Configuration
+[Slack setup and scopes](docs/en/SLACK_SETUP.md) · [Build and test](docs/en/BUILD.md)
 
-Before you can start posting, you need to create a configuration file.
+Configuration is `~/.config/scat/config.json`. New directories use 0700 and
+credential files use 0600. Existing broad file permissions produce a warning.
+The default profile starts without credentials; it cannot silently post anywhere.
+`auth.test` verifies bot and workspace identity before remote work. User/app-level
+tokens are rejected; scat never reads scli credentials or `SLACK_TOKEN`.
 
-1.  **Initialize the config file**:
-
-    Run the following command to create a configuration file (`~/.config/scat/config.json`) in the default location:
-
-    ```bash
-    scat config init
-    ```
-
-    **Important**: This configuration file contains sensitive information such as Slack tokens. For security, it is highly recommended to set the file permissions to `600` (read and write only for the owner).
-
-
-2.  **Configure a Profile**:
-
-    The default profile uses a mock provider, which is useful for testing. To post to a real service like Slack, you need to add a new profile.
-
-    For detailed instructions on setting up a Slack profile, please see the **[Slack Setup Guide](./docs/en/SLACK_SETUP.md)**.
-
-    Here is a quick example of how to add a new Slack profile:
-
-    ```bash
-    # This will prompt you to enter your Slack Bot Token securely.
-    scat profile add my-slack-workspace --provider slack --channel "#general"
-    ```
-
-3.  **Set the Active Profile**:
-
-    Tell `scat` to use your new profile by default:
-
-    ```bash
-    scat profile use my-slack-workspace
-    ```
-
-## Usage
-
-Here are some common ways to use `scat`.
-
-### Posting Text Messages (`post`)
-
--   **From an argument to a channel**:
-    `scat post --channel "#random" "Hello from the command line!"`
-
--   **From standard input (pipe) to the default channel**:
-    `echo "This message was piped." | scat post`
-
--   **As a Direct Message to a user (by mention name)**:
-    `scat post --user @someuser "Hello, this is a direct message."`
-
--   **As a Direct Message to a user (by user ID)**:
-    `scat post --user U123ABCDE "You can also use a user ID for DMs."`
-
-### Posting Block Kit Messages (`post` with `--format blocks`)
-
--   **From an argument (JSON string)**:
-    `scat post --format blocks '[{"type": "section", "text": {"type": "mrkdwn", "text": "Hello, Block Kit from argument!"}}]'`
-
--   **From a file (JSON file)**:
-    (Create a file named `blocks.json` with Block Kit JSON content)
-    `scat post --format blocks --from-file ./blocks.json`
-
--   **From standard input (JSON pipe)**:
-    `echo '[{"type": "section", "text": {"type": "mrkdwn", "text": "Hello, Block Kit from stdin!"}}]' | scat post --format blocks`
-
-### Uploading Files (`upload`)
-
--   **Upload a file to a channel**:
-    `scat upload --file ./report.pdf --channel "#reports"`
-
--   **Upload a file as a DM to a user with a comment**:
-    `scat upload --file ./screenshot.png --user @someuser -m "Here is the screenshot you requested."`
-
-### Exporting Channel Logs (`export log`)
-
-Exports message history from a channel to a structured JSON file or stdout. It fetches all messages, including replies in threads. For details on the output format, including fields like `user_id`, `user_name`, and `post_type`, please refer to the [Export Data Format documentation](./docs/en/EXPORT_FORMAT.md).
-
--   **Export to stdout and pipe to `jq`**:
-    `scat export log --channel "#random" | jq .`
-
--   **Export to a specific file**:
-    `scat export log -c "#random" --output "my-export.json"`
-
--   **Export and download attached files to an auto-generated directory**:
-    `scat export log -c "#random" --output-files auto`
-
--   **Export log to stdout and download files to a specific directory**:
-    `scat export log -c "#random" --output - --output-files "./attachments"`
-
-### Listing Channels and Users
-
--   **List channels with their IDs (human-readable table)**:
-    `scat channel list`
-
--   **List channels as JSON (for scripting)**:
-    `scat channel list --json`
-
--   **List users with their IDs**:
-    `scat user list`
-
--   **List users as JSON**:
-    `scat user list --json`
-
-### Inviting Users to a Channel
-
--   **Invite a single user**:
-    `scat channel invite general alice`
-
--   **Invite multiple users and a user group**:
-    `scat channel invite general alice bob @team-infra`
-
-## Command Reference
-
-### Global Flags
-
-These flags are available on the root `scat` command and apply to all subcommands.
-
-| Flag      | Description                                      |
-| --------- | ------------------------------------------------ |
-| `--config <path>` | Specify an alternative path for the configuration file. Not available in server mode. |
-| `--debug`   | Enable verbose debug logging.                    |
-| `--silent`  | Suppress success messages.                       |
-| `--noop`    | Perform a dry run without sending content.       |
-
-> **Note**: Most commands also accept a `--profile <name>` / `-p` flag to override the active profile for that single invocation. See each command's table below.
-
-### Main Commands
-
-| Command         | Description                                      |
-| --------------- | ------------------------------------------------ |
-| `scat post`     | Posts a text message.                            |
-| `scat upload`   | Uploads a file.                                  |
-| `scat export`   | Exports data, such as channel logs.              |
-| `scat profile`  | Manages configuration profiles.                  |
-| `scat config`   | Manages the configuration file itself.           |
-| `scat channel`  | Manages channels for supported providers.        |
-| `scat user`     | Lists users for supported providers.             |
-
-### `post` Command Flags
-
-| Flag          | Shorthand | Description                               |
-| ------------- | --------- | ----------------------------------------- |
-| `--profile`   | `-p`      | Use a specific profile for this command.  |
-| `--channel`   | `-c`      | Override destination channel (cannot be used with `--user`). |
-| `--user`      |           | Send a direct message to a user by ID or mention name. |
-| `--from-file` |           | Read message body from a file.            |
-| `--stream`    | `-s`      | Stream messages from stdin continuously.  |
-| `--tee`       | `-t`      | Print stdin to screen while posting.      |
-| `--username`  | `-u`      | Override the username for this post.      |
-| `--iconemoji` | `-i`      | Icon emoji to use (Slack provider only).  |
-| `--format`    |           | Message format (`text` or `blocks`). Default is `text`. |
-
-### `upload` Command Flags
-
-| Flag        | Shorthand | Description                                      |
-| ----------- | --------- | ------------------------------------------------ |
-| `--profile` | `-p`      | Use a specific profile for this command.         |
-| `--channel` | `-c`      | Override destination channel (cannot be used with `--user`). |
-| `--user`    |           | Send a direct message to a user by ID or mention name. |
-| `--file`    | `-f`      | **Required.** Path to the file, or `-` for stdin. |
-| `--filename`| `-n`      | Filename for the upload.                         |
-| `--filetype`|           | Filetype for syntax highlighting (e.g., `go`).   |
-| `--comment` | `-m`      | A comment to post with the file.                 |
-
-### `export log` Command Flags
-
-| Flag            | Shorthand | Description                                      |
-| --------------- | --------- | ------------------------------------------------ |
-| `--profile`     | `-p`      | Use a specific profile for this command.         |
-| `--channel`     | `-c`      | **Required.** Channel to export from.            |
-| `--output`      |           | Output file path for the log. Use `-` for stdout (default). |
-| `--output-files`|           | Directory to save downloaded files. If set to `auto`, a directory is auto-generated. |
-| `--output-format` |         | Output format (`json` or `text`). Default is `json`. |
-| `--start-time`  |           | Start of time range (RFC3339 format).            |
-| `--end-time`    |           | End of time range (RFC3339 format).              |
-
-### `profile` Subcommands
-
-| Subcommand | Description                                      |
-| ---------- | ------------------------------------------------ |
-| `list`     | List all available profiles.                     |
-| `use`      | Set the active profile.                          |
-| `add`      | Add a new profile.                               |
-| `set`      | Set a value in the current profile.              |
-| `remove`   | Remove a profile.                                |
-
-#### `profile add` Flags
-
-```bash
-scat profile add <profile-name> [flags]
+```sh
+scat profile add another-workspace --channel '#general'
+scat profile list
+scat profile use another-workspace
+scat --profile another-workspace channel list --json
+scat profile set limits.max_file_size_bytes 1073741824
+scat profile set limits.max_stdin_size_bytes 10485760
+scat profile remove unused-profile
+scat cache clear
 ```
 
-You will be prompted to enter the authentication token securely.
+`profile set` accepts `channel`, `username`, `token`, and the two limit keys above.
+`--profile` also selects the target of `profile set`. Default/active profiles cannot
+be removed. Limits must be nonnegative; **0 remains unlimited after save/load**.
+Lookups are cached only within an invocation; `cache clear` reports that no
+persistent cache exists. Configuration commands reject `--json`.
 
-| Flag                          | Description                                          | Default |
-| ----------------------------- | ---------------------------------------------------- | ------- |
-| `--provider <type>`           | Provider type: `slack` or `mock`.                    | `slack` |
-| `--channel <name>`            | Default destination channel.                         |         |
-| `--username <name>`           | Default display name for posts.                      |         |
-| `--limits-max-file-size-bytes`| Max upload file size in bytes.                       | 1073741824 (1 GB) |
-| `--limits-max-stdin-size-bytes`| Max stdin read size in bytes.                       | 10485760 (10 MB) |
+## Service mode
 
-#### `profile set` Keys
+Set `SCAT_MODE=server` and inject `SCAT_TOKEN` through your service's secret
+mechanism. Optional variables: `SCAT_CHANNEL`, `SCAT_USERNAME`,
+`SCAT_MAX_FILE_SIZE`, `SCAT_MAX_STDIN_SIZE`. Defaults are 1 GiB for files and
+10 MiB for stdin, in bytes. `SCAT_CACHE_DIR` is reserved for optional persistent
+caching; this implementation does not write a persistent cache.
 
-```bash
-scat profile set <key> <value>
-scat profile set token   # prompts securely
+Server mode reads no profile file, never prompts, and rejects `--config`,
+`--profile`, and local configuration commands. Invalid modes and legacy
+`SCAT_PROVIDER` values fail explicitly.
+
+## Commands
+
+Global flags: `--config`, `--profile/-p`, `--quiet/-q`, `--debug`, `--json`,
+`--version/-V`. Quiet suppresses informational stderr, not results, warnings or
+errors. Debug prints configuration-selection diagnostics without tokens or bodies.
+
+```sh
+scat post 'Hello' -c '#general'
+printf 'Hello\n' | scat post
+scat post --from-file message.txt --user U0123456789
+scat post 'Reply' -c C0123456789 --thread 1704067200.123456
+scat post --format blocks '[{"type":"divider"}]'
+scat post --format payload --from-file message.json
+scat post 'Preview' --dry-run
 ```
 
-| Key                         | Description                          |
-| --------------------------- | ------------------------------------ |
-| `provider`                  | Provider type (`slack` or `mock`).   |
-| `channel`                   | Default destination channel.         |
-| `token`                     | Authentication token (prompted securely). |
-| `username`                  | Default display name for posts.      |
-| `limits.max_file_size_bytes`| Max upload file size in bytes.       |
-| `limits.max_stdin_size_bytes`| Max stdin read size in bytes.       |
+Input precedence is argument, `--from-file`, stdin. `--format` accepts `text`,
+`blocks` (an array or an object containing `blocks`), and `payload`. Payload fields
+are `text`, `blocks`, `attachments`, `unfurl_links`, `unfurl_media`, `mrkdwn`;
+routing and identity come from CLI/config, not the JSON. Optional flags:
+`--username`, `--icon-emoji`, `--thread`, `--unfurl-links`, `--unfurl-media`,
+`--mrkdwn`. Explicit CLI booleans override payload booleans. Custom name/icon
+requires the appropriate Slack permission and authorization.
 
-### `channel` Subcommands
+Post prints the timestamp; `--json` prints `{"ts":"...","channel":"..."}`.
+`--user` opens a DM and cannot be combined with explicit `--channel`.
 
-| Subcommand | Description                                      |
-| ---------- | ------------------------------------------------ |
-| `list`     | Lists channels with their names and IDs.         |
-| `create`   | Creates a new channel.                           |
-| `invite`   | Invites users or user groups to a channel.       |
-
-#### `channel list` Flags
-
-| Flag     | Description                                      |
-| -------- | ------------------------------------------------ |
-| `--profile` / `-p` | Use a specific profile for this command. |
-| `--json` | Output in JSON format instead of a table.        |
-
-#### `channel create` Flags
-
-```bash
-scat channel create <channel-name> [flags]
+```sh
+tail -f service.log | scat post --stream -c C0123456789
+printf 'pipeline text\n' | scat post --tee
 ```
 
-| Flag               | Description                                          |
-| ------------------ | ---------------------------------------------------- |
-| `--profile` / `-p` | Use a specific profile for this command.             |
-| `--description`    | Set the channel description.                         |
-| `--topic`          | Set the channel topic.                               |
-| `--private`        | Create a private channel.                            |
-| `--invite`         | Invite users or user groups (comma-separated list).  |
+Stream batches every three seconds or 4,000 Unicode characters, flushes at EOF,
+and fails on input/delivery errors or cancellation. The stdin limit applies to
+the invocation, including streams. Thread and formatting flags apply to every
+batch. `--tee` copies text stdin to stdout and suppresses result IDs; it rejects
+`--json`, argument/file input and structured formats. Stream accepts only text
+stdin and rejects `--dry-run`.
 
-#### `channel invite` Flags
-
-```bash
-scat channel invite <channel> <user-or-group> [user-or-group...]
+```sh
+scat upload --file report.pdf -c C0123456789 --comment 'Report'
+cat report.pdf | scat upload --file - --filename report.pdf --user U0123456789
+scat upload --file report.pdf -c C0123456789 --thread 1704067200.123456
 ```
 
-Users can be specified by display name (e.g. `alice`) or with an `@` prefix (e.g. `@alice`). User groups can be specified by handle (e.g. `@team-infra`).
+Upload also accepts `--dry-run`; stdin requires `--filename`. File inputs must be
+regular files. Inputs are staged in a private temporary snapshot with bounded
+memory. Upload checks destination membership before allocation, transfers bytes,
+and completes sharing with an explicit channel and optional **parent** timestamp.
+Only successful completion prints file IDs, or
+`{"files":[{"id":"..."}],"channel":"..."}` with `--json`.
+Completion is never automatically replayed, even on 429; an uncertain result
+reports file ID and stage. File-share broadcast is not supported.
 
-| Flag               | Description                                          |
-| ------------------ | ---------------------------------------------------- |
-| `--profile` / `-p` | Use a specific profile for this command.             |
-
-### `user` Subcommands
-
-| Subcommand | Description                                      |
-| ---------- | ------------------------------------------------ |
-| `list`     | Lists users with their names and IDs.            |
-
-#### `user list` Flags
-
-| Flag               | Description                                      |
-| ------------------ | ------------------------------------------------ |
-| `--profile` / `-p` | Use a specific profile for this command.         |
-| `--json`           | Output in JSON format instead of a table.        |
-
-### `config` Subcommands
-
-| Command             | Description                                      |
-| ------------------- | ------------------------------------------------ |
-| `config init`       | Creates a new default configuration file.        |
-
----
-
-## Server Mode (Container / CI Deployment)
-
-For server-side and containerized deployments, `scat` supports a **server mode** that reads all configuration from environment variables, eliminating the need for a config file on disk.
-
-### Enabling Server Mode
-
-Set the `SCAT_MODE=server` environment variable. All profile settings are then provided via environment variables:
-
-| Variable | Required | Description |
-| --- | --- | --- |
-| `SCAT_MODE` | yes | Set to `server` to enable server mode. |
-| `SCAT_PROVIDER` | yes | Provider name (e.g., `slack`). |
-| `SCAT_TOKEN` | yes | Authentication token. |
-| `SCAT_CHANNEL` | no | Default destination channel. |
-| `SCAT_USERNAME` | no | Default display name. |
-| `SCAT_MAX_FILE_SIZE` | no | Max upload file size in bytes (default: 1073741824 = 1 GB). |
-| `SCAT_MAX_STDIN_SIZE` | no | Max stdin read size in bytes (default: 10485760 = 10 MB). |
-
-### Example
-
-```bash
-export SCAT_MODE=server
-export SCAT_PROVIDER=slack
-export SCAT_TOKEN=xoxb-xxxxxxxxxxxx
-export SCAT_CHANNEL="#deploy-notify"
-
-echo "Deployed v1.2.0" | scat post
+```sh
+scat channel list --json
+scat user list --json
+scat channel create alerts --topic 'Service alerts' --description 'Automation' --invite U0123456789
+scat channel invite C0123456789 U0123456789 @on-call
 ```
 
-### Kubernetes Example
+Lists concern only the selected profile and return JSON arrays. IDs avoid name
+listing; ambiguous names fail. Invitations accept users or user groups; group IDs
+avoid user-name lookup. Creation prints its ID or `{"id":"...","name":"..."}`.
+Invitation JSON is `{"channel":"...","users":["..."]}`; plain mode uses stderr.
+Create/invite support `--dry-run` and do not resolve names in that mode.
+If setting topic/purpose or inviting fails after creation, the error includes the
+created ID; scat does not recreate or delete it automatically.
 
-Inject the token from a Kubernetes Secret — no config file or volume mount required:
+## Export
 
-```yaml
-env:
-  - name: SCAT_MODE
-    value: "server"
-  - name: SCAT_PROVIDER
-    value: "slack"
-  - name: SCAT_CHANNEL
-    value: "#alerts"
-  - name: SCAT_TOKEN
-    valueFrom:
-      secretKeyRef:
-        name: slack-credentials
-        key: token
+```sh
+scat channel export C0123456789 --output messages.json --save-dir attachments
+scat channel export '#general' --start 2024-01-01T00:00:00Z --end 2024-02-01T00:00:00Z
+scat channel export C0123456789 --format text
 ```
 
-### Restrictions in Server Mode
+Export follows [scli's data model](docs/en/EXPORT_FORMAT.md), including rich
+attachments, raw blocks/text and file metadata. JSON is the default; `--output -`
+uses stdout. `--format text` renders the same retrieved data and rejects `--json`.
 
-The following are not available in server mode and will return an error:
+**Time bounds select parents, exclusively; each selected thread is then fetched
+in full.** Replies outside the interval can appear. This does not exhaustively
+find new replies to old, unselected parents. Output is parent followed by its
+replies, not global time order. Broadcast duplicates are removed.
 
-- `--config` flag (config file is ignored entirely)
-- `--profile` flag (only the env-var profile is used)
-- All `profile` subcommands (`add`, `use`, `list`, `set`, `remove`)
-- `config init`
+Message/thread retrieval errors fail the whole export before output. Name lookup
+or file-download failure warns and preserves IDs/metadata, with `local_path:""`
+for unsaved files. Warnings remain visible under `--quiet`. Output files and
+attachments are replaced only after successful writes. Earlier successful file
+downloads may remain after a later export failure. Export memory grows with the
+retrieved history, matching scli.
 
----
+Downloads protect token-bearing redirects, distinguish login HTML at HTTP 200
+from attachments, and retain legitimate HTML/JSON files using response metadata.
+Unclear responses fail the file save with a warning. Attachment names cannot escape
+the selected directory; existing symlink targets are refused. API calls use a
+30-second timeout, file transfers 30 minutes, with cancellation. HTTP 429 retries
+are bounded; ambiguous mutations and upload completion are not replayed.
 
-## Building
+## Migration from v1
 
-```bash
-make build      # Current platform → dist/scat
-make build-all  # All platforms → dist/<binary>-<goos>-<goarch>[.exe]
-make package    # Build + create .zip archives → dist/
-make test       # Run the test suite
-make clean      # Remove dist/
-```
+Back up your config and scripts before upgrading. Remove `provider` and `endpoint`
+from **every** profile, and unset `SCAT_PROVIDER`. Old fields fail with migration
+guidance; scat never converts a mock profile into a live bot silently. Supply bot
+credentials through the prompt or service environment. Existing exports are untouched.
 
-## Acknowledgements
+| v1 | v2 |
+|----|----|
+| `export log --channel X` | `channel export X` |
+| `--start-time`, `--end-time` | `--start`, `--end` |
+| `--output-files DIR` | `--save-dir DIR` (explicit directory; no auto mode) |
+| `--output-format` | export `--format` |
+| `--silent`, `--iconemoji`, `--noop` | `--quiet`, `--icon-emoji`, `--dry-run` |
+| `--provider`, upload `--filetype` | Removed |
+| List every profile at once | Select each with `--profile` |
+| Resolved mention text / global export sort | Original text / thread grouping |
 
-This project is heavily inspired by and based on the concepts of [bcicen/slackcat](https://github.com/bcicen/slackcat). The core logic for handling file/stdin streaming and posting was re-implemented with reference to the original `slackcat` codebase. `slackcat` is also distributed under the MIT License.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+There are no permanent compatibility aliases or runtime mock providers. Tests
+inject HTTP and I/O instead. Dry runs validate local inputs, emit a redacted stderr
+summary and no success IDs; they do not verify bot identity or remote permissions.

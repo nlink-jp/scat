@@ -1,98 +1,166 @@
-
 package cmd
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
-
-	"github.com/nlink-jp/scat/internal/appcontext"
 	"github.com/nlink-jp/scat/internal/config"
+	"github.com/nlink-jp/scat/internal/slack"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
+	"io"
+	"net/http"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
 )
 
 var version = "dev"
 
-// newRootCmd creates the root command for scat.
-func newRootCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "scat",
-		Version: version,
-		Short:   "A general-purpose tool for posting messages from the command line.",
-		Long: `scat is a versatile command-line interface for sending content from files or stdin to a configured HTTP endpoint.
-
-It is inspired by slackcat but generalized to work with any compatible webhook or API endpoint.
-
-Features:
-- Post content from files or stdin.
-- Stream stdin continuously.
-- Manage multiple destination endpoints through profiles.`,
-		SilenceUsage:  true, // Suppress usage message on error
-		SilenceErrors: true, // Suppress cobra's own error reporting
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			debug, _ := cmd.Flags().GetBool("debug")
-			noOp, _ := cmd.Flags().GetBool("noop")
-			silent, _ := cmd.Flags().GetBool("silent")
-			configPath, _ := cmd.Flags().GetString("config")
-
-			serverMode, err := config.DetectServerMode()
-			if err != nil {
-				return err
-			}
-
-			var cfg *config.Config
-
-			if serverMode {
-				if configPath != "" {
-					return fmt.Errorf("--config flag cannot be used in server mode (SCAT_MODE=server)")
-				}
-				cfg, err = config.BuildConfigFromEnv()
-				if err != nil {
-					return err
-				}
-			} else {
-				// CLI mode: load config file. Not-found is not an error here;
-				// commands that require a config will check for cfg == nil.
-				resolvedPath, pathErr := config.GetConfigPath(configPath)
-				if pathErr != nil {
-					return fmt.Errorf("failed to get config path: %w", pathErr)
-				}
-				configPath = resolvedPath
-				cfg, err = config.Load(configPath)
-				if err != nil && !os.IsNotExist(err) {
-					return fmt.Errorf("failed to load config: %w", err)
-				}
-				// cfg remains nil if the file does not exist
-			}
-
-			appCtx := appcontext.NewContext(debug, noOp, silent, configPath, serverMode, cfg)
-			cmd.SetContext(context.WithValue(cmd.Context(), appcontext.CtxKey, appCtx))
-			return nil
-		},
-	}
-
-	// Persistent flags
-	cmd.PersistentFlags().Bool("debug", false, "Enable debug logging")
-	cmd.PersistentFlags().Bool("noop", false, "Dry run, do not actually post or upload")
-	cmd.PersistentFlags().Bool("silent", false, "Suppress informational messages")
-	cmd.PersistentFlags().String("config", "", "Path to an alternative config file")
-
-	return cmd
+// Dependencies are invocation-scoped. No global configuration, HTTP client or test provider.
+type Dependencies struct {
+	HTTP   *http.Client
+	Now    func() time.Time
+	Wait   func(context.Context, time.Duration) error
+	Getenv func(string) string
+	Prompt func(io.Writer) (string, error)
+	Ticks  <-chan time.Time
+}
+type app struct {
+	deps                       Dependencies
+	cfg                        *config.Config
+	selected                   config.Profile
+	configPath, profile        string
+	quiet, debug, json, server bool
+	client                     *slack.Client
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+func NewCommand(d Dependencies) *cobra.Command {
+	if d.Getenv == nil {
+		d.Getenv = os.Getenv
+	}
+	if d.Prompt == nil {
+		d.Prompt = func(w io.Writer) (string, error) {
+			if !term.IsTerminal(int(os.Stdin.Fd())) {
+				return "", errors.New("token setup requires a terminal; services use SCAT_TOKEN")
+			}
+			fmt.Fprint(w, "Bot token (hidden): ")
+			b, e := term.ReadPassword(int(os.Stdin.Fd()))
+			fmt.Fprintln(w)
+			return string(b), e
+		}
+	}
+	a := &app{deps: d}
+	root := &cobra.Command{Use: "scat", Short: "Slack CLI for services using bot credentials", Version: version, SilenceUsage: true, SilenceErrors: true}
+	f := root.PersistentFlags()
+	f.StringVar(&a.configPath, "config", "", "Configuration path")
+	f.StringVarP(&a.profile, "profile", "p", "", "Bot profile")
+	f.BoolVarP(&a.quiet, "quiet", "q", false, "Suppress informational stderr")
+	f.BoolVar(&a.debug, "debug", false, "Enable safe diagnostic output")
+	f.BoolVar(&a.json, "json", false, "Machine-readable results")
+	f.BoolP("version", "V", false, "Print version")
+	root.SetFlagErrorFunc(func(c *cobra.Command, e error) error {
+		for old, newFlag := range map[string]string{"--provider": "remove --provider (Slack only)", "--noop": "use --dry-run", "--silent": "use --quiet", "--iconemoji": "use --icon-emoji", "--filetype": "remove --filetype (unused by Slack)", "--output-files": "use --save-dir", "--start-time": "use --start", "--end-time": "use --end", "--output-format": "use --format"} {
+			if strings.Contains(e.Error(), old) {
+				return errors.New("scat v2 migration: " + newFlag)
+			}
+		}
+		return e
+	})
+	root.PersistentPreRunE = func(c *cobra.Command, args []string) error {
+		if d.Getenv("SCAT_PROVIDER") != "" {
+			return errors.New("SCAT_PROVIDER was removed; unset it for Slack-only scat v2")
+		}
+		var err error
+		a.server, err = config.ServerMode(d.Getenv)
+		if err != nil {
+			return err
+		}
+		local := c.Annotations["local"] == "true"
+		if a.server {
+			if c.Flags().Changed("config") || c.Flags().Changed("profile") || local {
+				return errors.New("server mode rejects config/profile flags and local management commands")
+			}
+			a.cfg, err = config.FromEnv(d.Getenv)
+		} else {
+			a.configPath, err = config.GetConfigPath(a.configPath)
+			if err == nil {
+				a.cfg, err = config.Load(a.configPath)
+				if os.IsNotExist(err) {
+					a.cfg = nil
+					err = nil
+				}
+			}
+			if info, e := os.Stat(a.configPath); e == nil && info.Mode().Perm()&0077 != 0 {
+				a.warn(c, "credential file permissions are too broad; use chmod 600")
+			}
+		}
+		if err != nil {
+			return err
+		}
+		if local {
+			if a.json {
+				return errors.New("--json is not supported for local management")
+			}
+			return nil
+		}
+		if a.cfg == nil {
+			return errors.New("configuration file not found; run scat config init or set SCAT_MODE=server")
+		}
+		name := a.profile
+		if name == "" {
+			name = a.cfg.CurrentProfile
+		}
+		p, ok := a.cfg.Profiles[name]
+		if !ok {
+			return errors.New("profile not found")
+		}
+		a.selected = p
+		a.client = slack.New(p.Token, slack.Options{HTTP: d.HTTP, Now: d.Now, Wait: d.Wait, Warn: func(s string) { a.warn(c, s) }, MaxFileSize: p.Limits.MaxFileSizeBytes})
+		if a.debug {
+			a.info(c, "using selected bot configuration")
+		}
+		return nil
+	}
+	root.AddCommand(a.postCommand(), a.uploadCommand(), a.channelCommand(), a.userCommand(), a.configCommand(), a.profileCommand(), a.cacheCommand())
+	root.AddCommand(&cobra.Command{Use: "export", Hidden: true, DisableFlagParsing: true, RunE: func(*cobra.Command, []string) error {
+		return errors.New("scat v2: use channel export <channel> --start/--end --save-dir --format")
+	}})
+	return root
+}
+func (a *app) warn(c *cobra.Command, s string) { fmt.Fprintln(c.ErrOrStderr(), "Warning:", s) }
+func (a *app) info(c *cobra.Command, s string) {
+	if !a.quiet {
+		fmt.Fprintln(c.ErrOrStderr(), s)
+	}
+}
+func (a *app) result(c *cobra.Command, v any, text string) error {
+	if a.json {
+		return json.NewEncoder(c.OutOrStdout()).Encode(v)
+	}
+	_, err := fmt.Fprintln(c.OutOrStdout(), text)
+	return err
+}
+func (a *app) destination(channel, user string) (string, error) {
+	if user != "" {
+		if channel != "" {
+			return "", errors.New("--user and --channel are mutually exclusive")
+		}
+		return "", nil
+	}
+	if channel == "" {
+		channel = a.selected.Channel
+	}
+	if channel == "" {
+		return "", errors.New("channel or --user is required")
+	}
+	return channel, nil
+}
 func Execute() error {
-	rootCmd := newRootCmd()
-
-	// Add child commands
-	rootCmd.AddCommand(newConfigCmd())
-	rootCmd.AddCommand(newProfileCmd())
-	rootCmd.AddCommand(newPostCmd())
-	rootCmd.AddCommand(newUploadCmd())
-	rootCmd.AddCommand(newExportCmd())
-	rootCmd.AddCommand(newChannelCmd())
-	rootCmd.AddCommand(newUserCmd())
-
-	return rootCmd.Execute()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	return NewCommand(Dependencies{}).ExecuteContext(ctx)
 }

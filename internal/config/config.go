@@ -1,184 +1,173 @@
+// Package config owns bot profiles and environment-only service configuration.
 package config
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
-	"strings"
 )
 
-const modeEnvVar = "SCAT_MODE"
-
-// DetectServerMode returns true when SCAT_MODE=server is set.
-// Returns an error if SCAT_MODE is set to an unrecognized value.
-func DetectServerMode() (bool, error) {
-	val := os.Getenv(modeEnvVar)
-	switch val {
-	case "":
-		return false, nil
-	case "server":
-		return true, nil
-	default:
-		return false, fmt.Errorf("invalid SCAT_MODE value %q: must be \"server\" or unset", val)
-	}
-}
-
-// BuildConfigFromEnv constructs a virtual Config from environment variables for server mode.
-// SCAT_PROVIDER and SCAT_TOKEN are required; SCAT_CHANNEL, SCAT_USERNAME,
-// SCAT_MAX_FILE_SIZE, and SCAT_MAX_STDIN_SIZE are optional.
-// The resulting Config has a single profile named "server".
-func BuildConfigFromEnv() (*Config, error) {
-	p := os.Getenv("SCAT_PROVIDER")
-	t := os.Getenv("SCAT_TOKEN")
-
-	var missing []string
-	if p == "" {
-		missing = append(missing, "SCAT_PROVIDER")
-	}
-	if t == "" {
-		missing = append(missing, "SCAT_TOKEN")
-	}
-	if len(missing) > 0 {
-		return nil, fmt.Errorf("server mode requires environment variables: %s", strings.Join(missing, ", "))
-	}
-
-	limits, err := limitsFromEnv()
-	if err != nil {
-		return nil, err
-	}
-
-	return &Config{
-		CurrentProfile: "server",
-		Profiles: map[string]Profile{
-			"server": {
-				Provider: p,
-				Token:    t,
-				Channel:  os.Getenv("SCAT_CHANNEL"),
-				Username: os.Getenv("SCAT_USERNAME"),
-				Limits:   limits,
-			},
-		},
-	}, nil
-}
-
-// limitsFromEnv reads SCAT_MAX_FILE_SIZE and SCAT_MAX_STDIN_SIZE, falling back to defaults.
-func limitsFromEnv() (Limits, error) {
-	defaults := NewDefaultLimits()
-	limits := defaults
-
-	if v := os.Getenv("SCAT_MAX_FILE_SIZE"); v != "" {
-		n, err := strconv.ParseInt(v, 10, 64)
-		if err != nil || n < 0 {
-			return Limits{}, fmt.Errorf("invalid SCAT_MAX_FILE_SIZE value %q: must be a non-negative integer (bytes)", v)
-		}
-		limits.MaxFileSizeBytes = n
-	}
-	if v := os.Getenv("SCAT_MAX_STDIN_SIZE"); v != "" {
-		n, err := strconv.ParseInt(v, 10, 64)
-		if err != nil || n < 0 {
-			return Limits{}, fmt.Errorf("invalid SCAT_MAX_STDIN_SIZE value %q: must be a non-negative integer (bytes)", v)
-		}
-		limits.MaxStdinSizeBytes = n
-	}
-	return limits, nil
-}
-
-const (
-	configDir  = ".config"
-	configFile = "scat/config.json"
-)
-
-// Config represents the overall structure of the application's configuration file.
 type Config struct {
 	CurrentProfile string             `json:"current_profile"`
 	Profiles       map[string]Profile `json:"profiles"`
 }
-
-// Profile defines the settings for a specific destination endpoint.
 type Profile struct {
-	Provider string `json:"provider,omitempty"` // "mock" or "slack"
-	Endpoint string `json:"endpoint,omitempty"` // Used by "generic" provider (deprecated)
-	Channel  string `json:"channel,omitempty"`  // Used by "slack" provider
+	Channel  string `json:"channel,omitempty"`
 	Token    string `json:"token,omitempty"`
 	Username string `json:"username,omitempty"`
 	Limits   Limits `json:"limits"`
 }
-
-// Limits defines the size limits for inputs.
 type Limits struct {
-	MaxFileSizeBytes int64 `json:"max_file_size_bytes,omitempty"`
-	MaxStdinSizeBytes int64 `json:"max_stdin_size_bytes,omitempty"`
+	MaxFileSizeBytes  int64 `json:"max_file_size_bytes"`
+	MaxStdinSizeBytes int64 `json:"max_stdin_size_bytes"`
 }
 
-// NewDefaultLimits returns a Limits struct with default values.
-func NewDefaultLimits() Limits {
-	return Limits{
-		MaxFileSizeBytes: 1024 * 1024 * 1024, // 1 GB
-		MaxStdinSizeBytes: 10 * 1024 * 1024,  // 10 MB
+func NewDefaultLimits() Limits { return Limits{1024 * 1024 * 1024, 10 * 1024 * 1024} }
+func (l Limits) Validate() error {
+	if l.MaxFileSizeBytes < 0 || l.MaxStdinSizeBytes < 0 {
+		return errors.New("input limits must be nonnegative; zero means unlimited")
 	}
+	return nil
 }
-
-// NewDefaultConfig creates a new Config object with default settings.
-func NewDefaultConfig() *Config {
-	return &Config{
-		CurrentProfile: "default",
-		Profiles: map[string]Profile{
-			"default": {
-				Provider: "mock",
-				Channel:  "#mock-channel",
-				Limits:   NewDefaultLimits(),
-			},
-		},
+func (p *Profile) UnmarshalJSON(b []byte) error {
+	var keys map[string]json.RawMessage
+	if json.Unmarshal(b, &keys) != nil {
+		return errors.New("invalid profile JSON")
 	}
-}
-
-// Load reads the configuration file from the user's config directory.
-func Load(configPath string) (*Config, error) {
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, err // Return error if file doesn't exist or other read error
-	}
-
-	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
-
-	// For backward compatibility, populate limits if they are not set.
-	for name, profile := range cfg.Profiles {
-		if profile.Limits.MaxFileSizeBytes == 0 && profile.Limits.MaxStdinSizeBytes == 0 {
-			profile.Limits = NewDefaultLimits()
-			cfg.Profiles[name] = profile
+	for _, key := range []string{"provider", "endpoint"} {
+		if _, ok := keys[key]; ok {
+			return errors.New("legacy provider/endpoint configuration: back up the file and remove these fields; scat v2 accepts Slack bot profiles only")
 		}
 	}
-
-	return &cfg, nil
+	type plain Profile
+	v := plain{Limits: NewDefaultLimits()}
+	d := json.NewDecoder(bytes.NewReader(b))
+	d.DisallowUnknownFields()
+	if d.Decode(&v) != nil {
+		return errors.New("invalid or unknown profile field")
+	}
+	*p = Profile(v)
+	return p.Limits.Validate()
+}
+func NewDefaultConfig() *Config {
+	return &Config{CurrentProfile: "default", Profiles: map[string]Profile{"default": {Limits: NewDefaultLimits()}}}
 }
 
-// Save writes the current configuration to the user's config directory.
-func (c *Config) Save(configPath string) error {
-	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
+var profileName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
+
+func ValidName(s string) bool { return profileName.MatchString(s) }
+func (c *Config) Validate() error {
+	if c.Profiles == nil {
+		return errors.New("configuration requires profiles")
+	}
+	if _, ok := c.Profiles[c.CurrentProfile]; !ok {
+		return errors.New("current_profile does not identify an existing profile")
+	}
+	for n, p := range c.Profiles {
+		if !ValidName(n) {
+			return errors.New("invalid profile name")
+		}
+		if err := p.Limits.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func Load(path string) (*Config, error) {
+	// #nosec G304 -- Path is the default config or the operator's explicit --config selection.
+	b, e := os.ReadFile(path)
+	if e != nil {
+		return nil, e
+	}
+	var c Config
+	d := json.NewDecoder(bytes.NewReader(b))
+	d.DisallowUnknownFields()
+	if e = d.Decode(&c); e != nil {
+		// Custom profile errors contain migration guidance; JSON values never enter diagnostics.
+		if e.Error() == "legacy provider/endpoint configuration: back up the file and remove these fields; scat v2 accepts Slack bot profiles only" {
+			return nil, e
+		}
+		return nil, errors.New("invalid configuration; check fields and nonnegative input limits")
+	}
+	if !json.Valid(b) {
+		return nil, errors.New("invalid configuration JSON")
+	}
+	if e = c.Validate(); e != nil {
+		return nil, e
+	}
+	return &c, nil
+}
+func (c *Config) Save(path string) error {
+	if err := c.Validate(); err != nil {
 		return err
 	}
-
-	data, err := json.MarshalIndent(c, "", "  ")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
 	}
-
-	return os.WriteFile(configPath, data, 0600)
+	f, err := os.CreateTemp(filepath.Dir(path), ".scat-config-")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+	if _, err = f.Write(append(b, '\n')); err != nil {
+		return err
+	}
+	if err = f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), path)
 }
-
-// GetConfigPath returns the absolute path to the configuration file.
-func GetConfigPath(overridePath string) (string, error) {
-	if overridePath != "" {
-		return overridePath, nil
+func GetConfigPath(override string) (string, error) {
+	if override != "" {
+		return filepath.Abs(override)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, configDir, configFile), nil
+	return filepath.Join(home, ".config", "scat", "config.json"), nil
 }
+func ServerMode(getenv func(string) string) (bool, error) {
+	switch getenv("SCAT_MODE") {
+	case "":
+		return false, nil
+	case "server":
+		return true, nil
+	default:
+		return false, errors.New("SCAT_MODE must be server or unset")
+	}
+}
+func DetectServerMode() (bool, error) { return ServerMode(os.Getenv) }
+func FromEnv(getenv func(string) string) (*Config, error) {
+	if getenv("SCAT_PROVIDER") != "" {
+		return nil, errors.New("SCAT_PROVIDER was removed; unset it for Slack-only scat v2")
+	}
+	if getenv("SCAT_TOKEN") == "" {
+		return nil, errors.New("server mode requires SCAT_TOKEN")
+	}
+	l := NewDefaultLimits()
+	for _, p := range []struct {
+		key    string
+		target *int64
+	}{{"SCAT_MAX_FILE_SIZE", &l.MaxFileSizeBytes}, {"SCAT_MAX_STDIN_SIZE", &l.MaxStdinSizeBytes}} {
+		if s := getenv(p.key); s != "" {
+			n, e := strconv.ParseInt(s, 10, 64)
+			if e != nil || n < 0 {
+				return nil, fmt.Errorf("%s must be a nonnegative integer", p.key)
+			}
+			*p.target = n
+		}
+	}
+	return &Config{CurrentProfile: "server", Profiles: map[string]Profile{"server": {Token: getenv("SCAT_TOKEN"), Channel: getenv("SCAT_CHANNEL"), Username: getenv("SCAT_USERNAME"), Limits: l}}}, nil
+}
+func BuildConfigFromEnv() (*Config, error) { return FromEnv(os.Getenv) }

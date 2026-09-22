@@ -2,243 +2,231 @@ package cmd
 
 import (
 	"bufio"
-	"encoding/json"
+	"context"
+	"errors"
 	"fmt"
+	"github.com/nlink-jp/scat/internal/input"
+	"github.com/nlink-jp/scat/internal/slack"
+	"github.com/spf13/cobra"
 	"io"
 	"os"
 	"strings"
 	"time"
-
-	"github.com/nlink-jp/scat/internal/appcontext"
-	"github.com/nlink-jp/scat/internal/provider"
-	"github.com/spf13/cobra"
+	"unicode/utf8"
 )
 
-// newPostCmd creates the command for posting messages.
-func newPostCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "post [message text]",
-		Short: "Post a text message from an argument, file, or stdin",
-		Long:  `Posts a text message. The message content is sourced in the following order of precedence: 1. Command-line argument. 2. --from-file flag. 3. Standard input.`, 
-		RunE: func(cmd *cobra.Command, args []string) error {
-			appCtx := cmd.Context().Value(appcontext.CtxKey).(appcontext.Context)
-
-			cfg := appCtx.Config
-			if cfg == nil {
-				return fmt.Errorf("configuration file not found. Please run 'scat config init' to create a default configuration")
-			}
-
-			// Determine profile
-			profileName, _ := cmd.Flags().GetString("profile")
-			if profileName == "" {
-				profileName = cfg.CurrentProfile
-			}
-			profile, ok := cfg.Profiles[profileName]
-			if !ok {
-				return fmt.Errorf("profile '%s' not found", profileName)
-			}
-
-			// Get optional flags
-			username, _ := cmd.Flags().GetString("username")
-			iconEmoji, _ := cmd.Flags().GetString("iconemoji")
-			channel, _ := cmd.Flags().GetString("channel")
-			user, _ := cmd.Flags().GetString("user")
-			tee, _ := cmd.Flags().GetBool("tee")
-			fromFile, _ := cmd.Flags().GetString("from-file")
-			format, _ := cmd.Flags().GetString("format")
-
-			// --- Flag Validation and Exclusive Handling ---
-			if user != "" && channel != "" {
-				return fmt.Errorf("cannot use --user and --channel flags simultaneously")
-			}
-
-			// Get provider instance
-			prov, err := GetProvider(appCtx, profile)
-			if err != nil {
+func readBounded(r io.Reader, limit int64) ([]byte, error) {
+	if limit == 0 {
+		return io.ReadAll(r)
+	}
+	b, e := io.ReadAll(io.LimitReader(r, limit))
+	if e != nil {
+		return nil, e
+	}
+	var extra [1]byte
+	n, e := io.ReadFull(r, extra[:])
+	if n > 0 {
+		return nil, errors.New("input exceeds configured size limit")
+	}
+	if e != nil && e != io.EOF {
+		return nil, e
+	}
+	return b, nil
+}
+func (a *app) postCommand() *cobra.Command {
+	var channel, user, fromFile, format, username, icon, thread string
+	var stream, tee, dry, unfurlLinks, unfurlMedia, mrkdwn bool
+	c := &cobra.Command{Use: "post [text]", Short: "Post an argument, file or stdin", RunE: func(c *cobra.Command, args []string) error {
+		ch, err := a.destination(channel, user)
+		if err != nil {
+			return err
+		}
+		if err = slack.ValidateThread(thread); err != nil {
+			return err
+		}
+		if format != "text" && format != "blocks" && format != "payload" {
+			return errors.New("--format must be text, blocks or payload")
+		}
+		if tee && (a.json || len(args) > 0 || fromFile != "" || format != "text") {
+			return errors.New("--tee requires text stdin and cannot be combined with --json")
+		}
+		if stream && (dry || format != "text" || len(args) > 0 || fromFile != "") {
+			return errors.New("--stream requires text stdin and cannot use --dry-run")
+		}
+		name := username
+		if name == "" {
+			name = a.selected.Username
+		}
+		send := func(text string) error {
+			if err := c.Context().Err(); err != nil {
 				return err
 			}
-
-			stream, _ := cmd.Flags().GetBool("stream")
-
-			// Validate format flag value
-			if format != "text" && format != "blocks" {
-				return fmt.Errorf("invalid value for --format: %s. Must be 'text' or 'blocks'", format)
+			payload, e := slack.ParseContent(text, format)
+			if e != nil {
+				return e
 			}
-
-			// Exclusive handling for --stream and --format blocks
-			if stream && format == "blocks" {
-				return fmt.Errorf("cannot use --stream with --format blocks")
-			}
-
-			if stream {
-				return handleStream(prov, channel, user, profileName, username, iconEmoji, tee, appCtx.Silent)
-			}
-
-			// --- Determine message content and format ---
-			var content string
-			var blocks json.RawMessage
-
-			// Read content from args, file, or stdin
-			if len(args) > 0 {
-				content = strings.Join(args, " ")
-			} else if fromFile != "" {
-				fileContent, err := os.ReadFile(fromFile)
-				if err != nil {
-					return fmt.Errorf("failed to read from file %s: %w", fromFile, err)
-				}
-				content = string(fileContent)
-			} else {
-				stat, _ := os.Stdin.Stat()
-				if (stat.Mode() & os.ModeCharDevice) == 0 {
-					limit := profile.Limits.MaxStdinSizeBytes
-					var limitedReader io.Reader = os.Stdin
-					if limit > 0 {
-						limitedReader = io.LimitReader(os.Stdin, limit+1)
-					}
-					stdinContent, err := io.ReadAll(limitedReader)
-					if err != nil {
-						return fmt.Errorf("failed to read from stdin: %w", err)
-					}
-					if limit > 0 && int64(len(stdinContent)) > limit {
-						return fmt.Errorf("stdin size exceeds the configured limit (%d bytes)", limit)
-					}
-					content = string(stdinContent)
-				} else {
-					return fmt.Errorf("no message content provided via argument, --from-file, or stdin")
+			for _, f := range []struct {
+				key   string
+				value bool
+			}{{"unfurl-links", unfurlLinks}, {"unfurl-media", unfurlMedia}, {"mrkdwn", mrkdwn}} {
+				if c.Flags().Changed(f.key) {
+					payload[strings.ReplaceAll(f.key, "-", "_")] = f.value
 				}
 			}
-
-			// If format is blocks, parse content as JSON
-			if format == "blocks" {
-				// Attempt to unmarshal into a temporary map to check for the "blocks" key
-				var tempMap map[string]json.RawMessage
-				if err := json.Unmarshal([]byte(content), &tempMap); err != nil {
-					// If it's not a map, or unmarshalling fails, try to unmarshal directly as an array
-					var tempArray []interface{}
-					if err := json.Unmarshal([]byte(content), &tempArray); err != nil {
-						return fmt.Errorf("failed to parse block kit JSON: expected a JSON object with a 'blocks' key or a JSON array of blocks: %w", err)
-					}
-					// If it's a direct array, use the content as is
-					blocks = json.RawMessage(content)
-				} else if rawBlocks, ok := tempMap["blocks"]; ok {
-					// If it's a map with a "blocks" key, extract the value of "blocks"
-					blocks = rawBlocks
-				} else {
-					// If it's a map but no "blocks" key, it's an invalid format for Block Kit
-					return fmt.Errorf("failed to parse block kit JSON: expected a JSON object with a 'blocks' key or a JSON array of blocks")
-				}
+			if dry {
+				fmt.Fprintln(c.ErrOrStderr(), "Dry run: post input and destination validated locally; bot identity unverified")
+				return nil
 			}
-
-			// Tee output if requested (only for stdin, and not for blocks as it's structured data)
-			if tee && fromFile == "" && len(args) == 0 && format == "text" { // only tee stdin for text format
-				fmt.Print(content)
+			r, e := a.client.Post(c.Context(), slack.PostOptions{Channel: ch, User: user, Username: name, IconEmoji: icon, Thread: thread, Payload: payload})
+			if e != nil {
+				return e
 			}
-
-			// Post the message
-			opts := provider.PostMessageOptions{
-				TargetChannel:    channel,
-				TargetUserID:     user,
-				Text:             content,
-				OverrideUsername: username,
-				IconEmoji:        iconEmoji,
-				Blocks:           blocks,
+			if tee {
+				return nil
 			}
-			// If blocks are present, clear text to ensure blocks are prioritized by provider
-			if len(opts.Blocks) > 0 {
-				opts.Text = ""
+			return a.result(c, r, r.TS)
+		}
+		if stream {
+			return streamText(c.Context(), c.InOrStdin(), c.OutOrStdout(), tee, a.selected.Limits.MaxStdinSizeBytes, a.deps.Ticks, send)
+		}
+		var data []byte
+		switch {
+		case len(args) > 0:
+			data = []byte(strings.Join(args, " "))
+		case fromFile != "":
+			// #nosec G304 -- Explicit operator-selected input path; regular-file and size checks follow.
+			f, e := os.Open(fromFile)
+			if e != nil {
+				return e
 			}
-
-			// Check if provider supports blocks if format is blocks
-			if format == "blocks" && !prov.Capabilities().CanPostBlocks {
-				return fmt.Errorf("the provider for profile '%s' does not support posting Block Kit messages", profileName)
+			defer f.Close()
+			info, e := f.Stat()
+			if e != nil {
+				return e
 			}
-
-			if err := prov.PostMessage(opts); err != nil {
-				return fmt.Errorf("failed to post message: %w", err)
+			if !info.Mode().IsRegular() {
+				return errors.New("--from-file must be a regular file")
 			}
-			if !appCtx.Silent {
-				fmt.Fprintf(os.Stderr, "Message posted successfully to profile '%s'.\n", profileName)
+			data, err = readBounded(input.Reader{Context: c.Context(), Source: f}, a.selected.Limits.MaxFileSizeBytes)
+		default:
+			data, err = readBounded(input.Reader{Context: c.Context(), Source: c.InOrStdin()}, a.selected.Limits.MaxStdinSizeBytes)
+		}
+		if err != nil {
+			return err
+		}
+		if !utf8.Valid(data) {
+			return errors.New("post input must be UTF-8")
+		}
+		if tee {
+			if _, err = c.OutOrStdout().Write(data); err != nil {
+				return err
 			}
-
-			return nil
-		},
-	}
-
-	cmd.Flags().StringP("profile", "p", "", "Profile to use for this post")
-	cmd.Flags().StringP("channel", "c", "", "Override the destination channel for this post")
-	cmd.Flags().String("user", "", "Send a direct message to a user by ID")
-	cmd.Flags().String("from-file", "", "Read message body from a file")
-	cmd.Flags().BoolP("stream", "s", false, "Stream messages from stdin continuously")
-	cmd.Flags().BoolP("tee", "t", false, "Print stdin to screen before posting")
-	cmd.Flags().StringP("username", "u", "", "Override the username for this post")
-	cmd.Flags().StringP("iconemoji", "i", "", "Icon emoji to use for the post (slack provider only)")
-	cmd.Flags().String("format", "text", "Message format (text or blocks)")
-
-	return cmd
+		}
+		return send(string(data))
+	}}
+	f := c.Flags()
+	f.StringVarP(&channel, "channel", "c", "", "Channel name or ID")
+	f.StringVar(&user, "user", "", "User name or ID for a DM")
+	f.StringVar(&fromFile, "from-file", "", "Read a file")
+	f.StringVar(&format, "format", "text", "text, blocks or payload")
+	f.StringVar(&username, "username", "", "Posting name")
+	f.StringVar(&icon, "icon-emoji", "", "Posting emoji")
+	f.StringVar(&thread, "thread", "", "Parent timestamp")
+	f.BoolVar(&stream, "stream", false, "Batch stdin every 3 seconds (max 4000 characters)")
+	f.BoolVar(&tee, "tee", false, "Copy stdin to stdout, suppress result IDs")
+	f.BoolVar(&dry, "dry-run", false, "Validate locally without calling Slack")
+	f.BoolVar(&unfurlLinks, "unfurl-links", false, "Expand links")
+	f.BoolVar(&unfurlMedia, "unfurl-media", false, "Expand media")
+	f.BoolVar(&mrkdwn, "mrkdwn", true, "Interpret Slack formatting")
+	return c
 }
 
-func handleStream(prov provider.Interface, channel, user, profileName, overrideUsername, iconEmoji string, tee bool, silent bool) error {
-	if !silent {
-		fmt.Fprintf(os.Stderr, "Starting stream to profile '%s'. Press Ctrl+C to exit.\n", profileName)
-	}
-	lines := make(chan string)
-	scanner := bufio.NewScanner(os.Stdin)
+type runeRead struct {
+	r    rune
+	err  error
+	size int
+}
 
+// streamText bounds queued input and pending text independently of source length.
+func streamText(ctx context.Context, in io.Reader, out io.Writer, tee bool, limit int64, ticks <-chan time.Time, send func(string) error) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	events := make(chan runeRead, 1)
+	// A blocking arbitrary Reader cannot be canceled by Go. The CLI exits on signal;
+	// injected finite readers and all subsequent sends observe this context.
 	go func() {
-		for scanner.Scan() {
-			line := scanner.Text()
-			if tee {
-				fmt.Println(line)
+		r := bufio.NewReader(in)
+		for {
+			v, n, e := r.ReadRune()
+			select {
+			case events <- runeRead{v, e, n}:
+			case <-ctx.Done():
+				return
 			}
-			lines <- line
+			if e != nil {
+				return
+			}
 		}
-		close(lines)
 	}()
-
-	var buffer []string
-	ticker := CreateTicker(3 * time.Second)
-	defer ticker.Stop()
-
+	if ticks == nil {
+		t := time.NewTicker(3 * time.Second)
+		defer t.Stop()
+		ticks = t.C
+	}
+	pending := make([]rune, 0, 4000)
+	var bytesRead int64
+	flush := func() error {
+		if len(pending) == 0 {
+			return nil
+		}
+		text := string(pending)
+		if strings.TrimSpace(text) == "" {
+			pending = pending[:0]
+			return nil
+		}
+		if err := send(text); err != nil {
+			return err
+		}
+		pending = pending[:0]
+		return nil
+	}
 	for {
 		select {
-		case line, ok := <-lines:
-			if !ok {
-				if len(buffer) > 0 {
-					fmt.Fprintf(os.Stderr, "Flushing %d remaining lines...\n", len(buffer))
-					opts := provider.PostMessageOptions{
-						TargetChannel:    channel,
-						TargetUserID:     user,
-						Text:             strings.Join(buffer, "\n"),
-						OverrideUsername: overrideUsername,
-						IconEmoji:        iconEmoji,
-					}
-							if err := prov.PostMessage(opts); err != nil {
-								fmt.Fprintf(os.Stderr, "Error flushing remaining lines: %v\n", err)
-							}
-					}
-					if !silent {
-						fmt.Fprintln(os.Stderr, "Stream finished.")
-					}
-					return nil
+		case <-ctx.Done():
+			return fmt.Errorf("stream canceled with %d buffered characters unsent: %w", len(pending), ctx.Err())
+		case _, open := <-ticks:
+			if !open {
+				ticks = nil
+				continue
 			}
-			buffer = append(buffer, line)
-		case <-ticker.C:
-			if len(buffer) > 0 {
-				opts := provider.PostMessageOptions{
-					TargetChannel:    channel,
-					TargetUserID:     user,
-					Text:             strings.Join(buffer, "\n"),
-					OverrideUsername: overrideUsername,
-					IconEmoji:        iconEmoji,
+			if err := flush(); err != nil {
+				return err
+			}
+		case e := <-events:
+			if e.err == io.EOF {
+				return flush()
+			}
+			if e.err != nil {
+				return fmt.Errorf("stream input failed with %d buffered characters unsent: %w", len(pending), e.err)
+			}
+			if e.r == utf8.RuneError && e.size == 1 {
+				return errors.New("stream input must be UTF-8")
+			}
+			if limit > 0 && int64(e.size) > limit-bytesRead {
+				return errors.New("stdin exceeds configured size limit")
+			}
+			bytesRead += int64(e.size)
+			if tee {
+				if _, err := io.WriteString(out, string(e.r)); err != nil {
+					return err
 				}
-							if err := prov.PostMessage(opts); err != nil {
-								fmt.Fprintf(os.Stderr, "Error posting message: %v\n", err)
-							}
-							if !silent {
-								fmt.Fprintf(os.Stderr, "Posted %d lines to profile '%s'.\n", len(buffer), profileName)
-							}
-					buffer = nil
+			}
+			pending = append(pending, e.r)
+			if len(pending) == 4000 {
+				if err := flush(); err != nil {
+					return err
 				}
+			}
 		}
 	}
 }

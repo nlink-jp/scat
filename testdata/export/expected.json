@@ -1,0 +1,10 @@
+{
+ "export_timestamp":"2026-09-22T00:00:00Z",
+ "channel_name":"#general",
+ "messages":[
+  {"user_id":"U1","user_name":"Alice","post_type":"user","timestamp":"2024-01-01T00:00:00Z","timestamp_unix":"1704067200.000001","text":"parent","files":[{"id":"F1","name":"report.txt","mimetype":"text/plain","local_path":""}],"attachments":[{"fallback":"summary","title":"Report","fields":[{"title":"state","value":"ready","short":true}]}],"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"rich"}}],"thread_timestamp_unix":"1704067200.000001","is_reply":false},
+  {"user_id":"U2","user_name":"Bob","post_type":"user","timestamp":"2024-01-01T00:00:05Z","timestamp_unix":"1704067205.123456","text":"reply outside parent interval","files":[],"thread_timestamp_unix":"1704067200.000001","is_reply":true},
+  {"user_id":"U1","user_name":"Alice","post_type":"user","timestamp":"2024-01-01T00:00:02Z","timestamp_unix":"1704067202.000002","text":"ordinary <@U2>","files":[],"is_reply":false},
+  {"user_id":"UBOT","user_name":"service","post_type":"bot","timestamp":"2024-01-01T00:00:03Z","timestamp_unix":"1704067203.000003","text":"bot","files":[],"blocks":[],"is_reply":false}
+ ]
+}

@@ -1,86 +1,42 @@
-# scat のビルド
+# scatのビルドとテスト
 
-このドキュメントでは、`scat` バイナリをソースからビルドする手順と、関連する開発タスクの実行方法を説明します。
+[English](../en/BUILD.md)
 
----
+Go **1.25以降**とMakeを使います。この最低版は、添付保存の `os.Root` による固定ディレクトリ内の
+renameをサポートします。直接 `go build` せずMakeを使い、出力先 `dist/` とversion・署名設定を維持します。
 
-## 要件
-
--   **Go**: バージョン1.21以降。
--   **Make**: ビルドタスクを簡略化するために、標準の `make` ユーティリティを使用します。
--   **（macOSのみ）**: ユニバーサルバイナリの作成には `lipo` と `codesign` が必要です。これらは通常、Xcode Command Line Tools に含まれています。
-
-## 標準のビルド
-
-現在のオペレーティングシステムとアーキテクチャ向けに `scat` バイナリをビルドするには、以下を実行します。
-
-```bash
-make build
+```sh
+make fmt          # プロジェクト内cacheで go fmt ./...
+make check        # go vet ./... + go test ./...
+make test GOFLAGS=-race
+make build        # dist/scat
+make build-all    # darwin/arm64, linux/amd64, linux/arm64, windows/amd64
+make vulncheck    # govulncheckが必要。脆弱性DBへアクセス
 ```
 
-ビルドされたバイナリは `bin/<os>-<arch>/` ディレクトリに配置されます（例: `bin/darwin-arm64/scat`）。
+cacheは `.cache/` 配下です。テストではHTTP transport、時刻、I/Oを注入し、
+network listener・Slack token・実際の変更操作を必要としません。
+合成export fixtureを `testdata/export/` に追跡し、`internal/input` では入力待ちのキャンセルを検証します。
+CLIテストは維持するv1の操作（引数/file/stdin入力、profile管理、server mode、rich post、upload、channel操作）を
+v2の出力で確認します。旧mock providerのログ検査を、API要求と結果の検査へ置き換えました。
+通信テストでは認証redirectの許可・拒否、HTML 200エラー、正規HTML/JSON、upload snapshot、
+一度だけの完了、pagination、rate limit、結果不明の失敗、atomic出力を検証します。
 
-## インストール
+ローカル利用では `dist/scat` をPATH上のディレクトリへコピーしてください。
+`make install`、macOS universal binary、`bin/` 出力はありません。
 
-ビルドしたバイナリは、`PATH` に含まれるディレクトリにインストールできます。
+## リポジトリとリリース
 
--   **システム全体へのインストール（sudoが必要）**:
+本リポジトリは `nlink-jp/chatops-series` の `scat` submoduleです。
+scatの変更はここでコミットし、push後にアンブレラ側のgitlinkを別コミットで更新します。
+submoduleを通常ディレクトリに置き換えたり、未公開commitをアンブレラから参照したりしません。
+他のsubmoduleは変更しません。
 
-    `scat` を `/usr/local/bin` にインストールします。
+`make package` はrelease archiveを作成してmacOS notarizationを要求し、
+`make verify-release` は公開前にnotarized archiveとversionを検証します。
+`make brew` はHomebrew formulaを生成します。組織のrelease・署名規約に従ってください。
+ローカルのad-hocビルド成功はnotarized releaseを意味しません。
+実Slack検証と公開は別のgateで、この刷新ブランチではv2を公開しません。
 
-    ```bash
-    sudo make install
-    ```
-
--   **ユーザーローカルへのインストール**:
-
-    `scat` を `~/bin` にインストールします。`~/bin` がシェルの `PATH` に含まれていることを確認してください。
-
-    ```bash
-    make install PREFIX=~
-    ```
-
-## 開発タスク
-
-`Makefile` には、開発に役立つターゲットが他にもいくつか含まれています。
-
--   **テストの実行**:
-
-    ```bash
-    make test
-    ```
-
--   **リンターの実行**:
-
-    このプロジェクトでは `golangci-lint` を使用します。
-
-    ```bash
-    make lint
-    ```
-
--   **脆弱性のチェック**:
-
-    `govulncheck` を使用します。
-
-    ```bash
-    make vulncheck
-    ```
-
--   **ビルド成果物のクリーンアップ**:
-
-    ```bash
-    make clean
-    ```
-
-## クロスコンパイルとリリースパッケージング
-
-サポートされているすべてのプラットフォーム（macOS ユニバーサル、Linux/amd64、Windows/amd64）向けに `scat` をビルドし、リリース用のアーカイブにパッケージングするには、以下を実行します。
-
-```bash
-make cross-compile
-```
-
-このコマンドは以下を行います。
-1.  各ターゲットプラットフォーム向けにバイナリをビルドします。
-2.  macOS向けのユニバーサルバイナリを作成します。
-3.  バイナリを `bin/` ディレクトリ内の `.tar.gz`（macOS/Linux用）および `.zip`（Windows用）アーカイブにパッケージングします。
+静的検査の `gosec ./...` は、Slack兄弟hostに限定したAuthorization再付与にG119を報告します。
+ナレッジの指示に従い、この警告は抑制せず、該当箇所に理由と許可・拒否両側のテスト名を記載しています。

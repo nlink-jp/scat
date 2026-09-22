@@ -1,382 +1,168 @@
-# scat: 汎用コマンドラインコンテンツ投稿ツール
+# scat
 
-`scat` is a versatile command-line interface for sending content from files or standard input to a configured destination, such as Slack. It is inspired by `slackcat` but is designed to be more generic and extensible.
+[English](README.md)
 
----
+サービスが**ボット権限**で使うSlack CLIです。人がユーザー権限で使う姉妹ツールは
+`scli`です。複数workspaceのprofileは維持し、未使用のマルチサービス機構を撤去します。
 
-## 主な機能
+このブランチは破壊的変更を伴う **v2刷新**を実装しています。v2の公開リリースではありません。
+[ADR-0001](docs/ja/adr/0001-slack-bot-renewal.ja.md)と[移行手順](#v1からの移行)を参照してください。
 
-- **テキストメッセージの投稿**: 引数、ファイル、標準入力からコンテンツを送信します。
-- **ダイレクトメッセージ (DM) の送信**: ユーザーIDやメンション名でユーザーに直接メッセージやファイルを送信します。
-- **ファイルのアップロード**: 指定したパスや標準入力からファイルをアップロードします。
-- **コンテンツのストリーミング**: 標準入力を継続的に監視し、定期的にメッセージを投稿します。
-- **チャネルログのエクスポート**: チャネルのメッセージ履歴を構造化されたJSONファイルや標準出力に出力します。
-- **チャネル・ユーザーの一覧取得**: チャネルやユーザーをIDとともに人間が読みやすい形式またはJSON形式で一覧表示します。
-- **チャネルへのユーザー招待**: 既存のチャネルにユーザーやユーザーグループを招待します。
-- **プロファイル管理**: 複数の宛先を設定し、簡単に切り替えることができます。
-- **拡張可能なプロバイダ**: 現在、Slackとテスト用のモックプロバイダをサポートしています。
+## セットアップ
 
-## インストール
+ビルドにはGo 1.25以降が必要です。公開済みバージョンは
+[Releases](https://github.com/nlink-jp/scat/releases)から取得できます。このcheckoutのビルド:
 
-[リリースページ](https://github.com/nlink-jp/scat/releases)から、お使いのシステム用の最新のバイナリをダウンロードしてください。
-
-または、ソースからビルドすることも可能です:
-
-```bash
-make build
+```sh
+make build                  # dist/scat
+make check                  # go vet ./... + go test ./...
+scat config init
+scat profile set token      # 非表示の端末入力。トークンを引数に渡さない
+scat profile set channel C0123456789
 ```
 
-## 設定
+[Slack設定とscope](docs/ja/SLACK_SETUP.ja.md) · [ビルドとテスト](docs/ja/BUILD.ja.md)
 
-投稿を開始する前に、設定ファイルを作成する必要があります。
+設定ファイルは `~/.config/scat/config.json` です。新規ディレクトリは0700、資格情報ファイルは0600。
+既存ファイルの権限が広すぎる場合は警告します。default profileには最初は資格情報がなく、
+黙って投稿することはありません。外部操作前に `auth.test` でbotとworkspaceを確認します。
+user/app-level tokenは拒否し、scliの資格情報や `SLACK_TOKEN` は参照しません。
 
-1.  **設定ファイルの初期化**:
-
-    以下のコマンドを実行して、デフォルトの場所に設定ファイル (`~/.config/scat/config.json`) を作成します:
-
-    ```bash
-    scat config init
-    ```
-
-    **重要**: この設定ファイルには、Slackトークンなどの機密情報が含まれます。セキュリティのため、ファイルパーミッションを `600` (所有者のみ読み書き可能) に設定することを強く推奨します。
-
-2.  **プロファイルの設定**:
-
-    デフォルトのプロファイルは、テストに便利なモックプロバイダを使用します。Slackのような実際のサービスに投稿するには、新しいプロファイルを追加する必要があります。
-
-    Slackプロファイル設定の詳細な手順については、**[Slackセットアップガイド](./docs/ja/SLACK_SETUP.ja.md)** を参照してください。
-
-    以下に、新しいSlackプロファイルを簡単に追加する例を示します:
-
-    ```bash
-    # このコマンドを実行すると、Slack Botトークンを安全に入力するよう求められます。
-    scat profile add my-slack-workspace --provider slack --channel "#general"
-    ```
-
-3.  **アクティブプロファイルの設定**:
-
-    `scat` がデフォルトで使用するプロファイルを指定します:
-
-    ```bash
-    scat profile use my-slack-workspace
-    ```
-
-## 使用方法
-
-`scat` の一般的な使い方をいくつか紹介します。
-
-### テキストメッセージの投稿 (`post`)
-
--   **引数からチャンネルに投稿**:
-    `scat post --channel "#random" "コマンドラインからこんにちは！"`
-
--   **標準入力から (パイプ)**:
-    `echo "このメッセージはパイプされました。" | scat post`
-
--   **ユーザーへのDM (メンション名)**:
-    `scat post --user @someuser "こんにちは、ダイレクトメッセージです。"`
-
--   **ユーザーへのDM (ユーザーID)**:
-    `scat post --user U123ABCDE "ユーザーIDでもDMを送れます。"`
-
-### Block Kit メッセージの投稿 (`post` と `--format blocks`)
-
--   **引数から (JSON文字列)**:
-    `scat post --format blocks '[{"type": "section", "text": {"type": "mrkdwn", "text": "引数からBlock Kit！"}}]'`
-
--   **ファイルから (JSONファイル)**:
-    (Block Kit JSONコンテンツを含む `blocks.json` というファイルを作成してください)
-    `scat post --format blocks --from-file ./blocks.json`
-
--   **標準入力から (JSONパイプ)**:
-    `echo '[{"type": "section", "text": {"type": "mrkdwn", "text": "標準入力からBlock Kit！"}}]' | scat post --format blocks`
-
-### ファイルのアップロード (`upload`)
-
--   **チャンネルにファイルをアップロード**:
-    `scat upload --file ./report.pdf --channel "#reports"`
-
--   **ユーザーへのDMとしてコメント付きでアップロード**:
-    `scat upload --file ./screenshot.png --user @someuser -m "こちらがご依頼のスクリーンショットです。"`
-
-### チャネルログのエクスポート (`export log`)
-
--   **標準出力にエクスポートし、`jq`にパイプする**:
-    `scat export log --channel "#random" | jq .`
-
--   **指定したファイルにエクスポートする**:
-    `scat export log -c "#random" --output "my-export.json"`
-
--   **添付ファイルを自動生成されたディレクトリに保存する**:
-    `scat export log -c "#random" --output-files auto`
-
--   **ログは標準出力、添付ファイルは指定ディレクトリに保存する**:
-    `scat export log -c "#random" --output - --output-files "./attachments"`
-
-### チャネル・ユーザーの一覧取得
-
--   **チャンネルをIDとともに一覧表示 (テーブル形式)**:
-    `scat channel list`
-
--   **チャンネルをJSON形式で出力 (スクリプト用)**:
-    `scat channel list --json`
-
--   **ユーザーをIDとともに一覧表示**:
-    `scat user list`
-
--   **ユーザーをJSON形式で出力**:
-    `scat user list --json`
-
-### チャネルへのユーザー招待
-
--   **ユーザーを1人招待**:
-    `scat channel invite general alice`
-
--   **複数のユーザーとユーザーグループを招待**:
-    `scat channel invite general alice bob @team-infra`
-
-## コマンドリファレンス
-
-### グローバルフラグ
-
-ルートの `scat` コマンドで使用でき、すべてのサブコマンドに適用されます。
-
-| フラグ             | 説明                                           |
-| ------------------ | ---------------------------------------------- |
-| `--config <path>`  | 設定ファイルの代替パスを指定します。サーバーモードでは使用できません。 |
-| `--debug`          | 詳細なデバッグログを有効にします。               |
-| `--silent`         | 成功メッセージを抑制します。                   |
-| `--noop`           | コンテンツを送信しないドライランを実行します。   |
-
-> **注意**: ほとんどのコマンドは `--profile <name>` / `-p` フラグを受け付け、その1回の実行に対してアクティブプロファイルを上書きできます。詳細は各コマンドの表を参照してください。
-
-### メインコマンド
-
-| コマンド        | 説明                                           |
-| --------------- | ---------------------------------------------- |
-| `scat post`     | テキストメッセージを投稿します。                 |
-| `scat upload`   | ファイルをアップロードします。                   |
-| `scat export`   | チャネルログなどのデータをエクスポートします。   |
-| `scat profile`  | 設定プロファイルを管理します。                   |
-| `scat config`   | 設定ファイル自体を管理します。                   |
-| `scat channel`  | 対応プロバイダのチャンネルを管理します。         |
-| `scat user`     | 対応プロバイダのユーザーを一覧表示します。       |
-
-### `post` コマンドのフラグ
-
-| フラグ          | 短縮形 | 説明                                           |
-| --------------- | ------ | ---------------------------------------------- |
-| `--profile`     | `-p`   | このコマンドで使用するプロファイルを指定します。 |
-| `--channel`     | `-c`   | 宛先チャンネルを上書きします (`--user` と同時使用不可)。 |
-| `--user`        |        | ユーザーIDまたはメンション名でDMを送信します。  |
-| `--from-file`   |        | メッセージ本文をファイルから読み込みます。       |
-| `--stream`      | `-s`   | 標準入力からメッセージを継続的にストリームします。|
-| `--tee`         | `-t`   | 投稿前に標準入力の内容を画面に出力します。     |
-| `--username`    | `-u`   | この投稿のユーザー名を上書きします。             |
-| `--iconemoji`   | `-i`   | 使用するアイコン絵文字 (Slackプロバイダのみ)。   |
-| `--format`      |        | メッセージのフォーマット (`text` または `blocks`)。デフォルトは `text`。 |
-
-### `upload` コマンドのフラグ
-
-| フラグ        | 短縮形 | 説明                                                     |
-| ----------- | ------ | -------------------------------------------------------- |
-| `--profile` | `-p`   | このコマンドで使用するプロファイルを指定します。           |
-| `--channel` | `-c`   | 宛先チャンネルを上書きします (`--user` と同時使用不可)。   |
-| `--user`    |        | ユーザーIDまたはメンション名でDMとして送信します。         |
-| `--file`    | `-f`   | **必須。** アップロードするファイルのパス、または `-` で標準入力。|
-| `--filename`| `-n`   | アップロード時のファイル名。                             |
-| `--filetype`|        | 構文ハイライト用のファイルタイプ (例: `go`)。            |
-| `--comment` | `-m`   | ファイルと一緒に投稿するコメント。                       |
-
-### `export log` コマンドのフラグ
-
-| フラグ            | 短縮形 | 説明                                                     |
-| --------------- | ------ | -------------------------------------------------------- |
-| `--profile`     | `-p`   | このコマンドで使用するプロファイルを指定します。           |
-| `--channel`     | `-c`   | **必須。** エクスポート元のチャネル。                    |
-| `--output`      |        | ログの出力ファイルパス。`-`で標準出力（デフォルト）。     |
-| `--output-files`|        | 添付ファイルの保存先。`auto`でディレクトリを自動生成。未指定時はダウンロードしない。 |
-| `--output-format` |      | 出力フォーマット (`json` または `text`)。デフォルトは `json`。 |
-| `--start-time`  |        | 時間範囲の開始 (RFC3339フォーマット)。                   |
-| `--end-time`    |        | 時間範囲の終了 (RFC3339フォーマット)。                   |
-
-### `profile` サブコマンド
-
-| サブコマンド | 説明                                           |
-| ---------- | ---------------------------------------------- |
-| `list`     | 利用可能なすべてのプロファイルを表示します。     |
-| `use`      | アクティブなプロファイルを切り替えます。         |
-| `add`      | 新しいプロファイルを追加します。                 |
-| `set`      | 現在のプロファイルの設定値を変更します。         |
-| `remove`   | プロファイルを削除します。                       |
-
-#### `profile add` フラグ
-
-```bash
-scat profile add <プロファイル名> [フラグ]
+```sh
+scat profile add another-workspace --channel '#general'
+scat profile list
+scat profile use another-workspace
+scat --profile another-workspace channel list --json
+scat profile set limits.max_file_size_bytes 1073741824
+scat profile set limits.max_stdin_size_bytes 10485760
+scat profile remove unused-profile
+scat cache clear
 ```
 
-認証トークンはコマンド実行時に安全なプロンプトで入力を求められます。
+`profile set` は `channel`、`username`、`token`、上記2つのlimitキーに対応します。
+`--profile` は `profile set` の対象選択にも使えます。default/使用中profileは削除できません。
+上限は非負で、**0は保存・再読込後も無制限**です。名前解決のcacheは呼び出し内だけで、
+`cache clear` は永続cacheがないことを報告します。設定コマンドは `--json` を拒否します。
 
-| フラグ                           | 説明                                         | デフォルト |
-| -------------------------------- | -------------------------------------------- | ---------- |
-| `--provider <type>`              | プロバイダの種類: `slack` または `mock`。     | `slack`    |
-| `--channel <name>`               | デフォルトの送信先チャンネル。               |            |
-| `--username <name>`              | 投稿時のデフォルト表示名。                   |            |
-| `--limits-max-file-size-bytes`   | アップロードファイルの最大サイズ（バイト）。  | 1073741824 (1 GB) |
-| `--limits-max-stdin-size-bytes`  | 標準入力の最大読み込みサイズ（バイト）。      | 10485760 (10 MB) |
+## サービスモード
 
-#### `profile set` の設定キー
+`SCAT_MODE=server` を設定し、サービスの秘密情報管理機構から `SCAT_TOKEN` を注入します。
+任意の変数は `SCAT_CHANNEL`、`SCAT_USERNAME`、`SCAT_MAX_FILE_SIZE`、`SCAT_MAX_STDIN_SIZE`。
+既定値はファイル1 GiB、stdin 10 MiBで、単位はバイトです。`SCAT_CACHE_DIR` は任意の永続cache用に
+予約されていますが、この実装は永続cacheを書きません。
 
-```bash
-scat profile set <key> <value>
-scat profile set token   # セキュアなプロンプトで入力
+server modeはprofileファイルを読まず、対話入力をせず、`--config`・`--profile`・ローカル設定操作を
+拒否します。不正なmodeや旧 `SCAT_PROVIDER` は明示的にエラーにします。
+
+## コマンド
+
+共通フラグは `--config`、`--profile/-p`、`--quiet/-q`、`--debug`、`--json`、`--version/-V`。
+quietはstderrの補助情報だけを抑制し、結果・警告・エラーは消しません。
+debugはトークンや本文を含めず、設定選択の診断を表示します。
+
+```sh
+scat post 'Hello' -c '#general'
+printf 'Hello\n' | scat post
+scat post --from-file message.txt --user U0123456789
+scat post 'Reply' -c C0123456789 --thread 1704067200.123456
+scat post --format blocks '[{"type":"divider"}]'
+scat post --format payload --from-file message.json
+scat post 'Preview' --dry-run
 ```
 
-| キー                          | 説明                                         |
-| ----------------------------- | -------------------------------------------- |
-| `provider`                    | プロバイダの種類 (`slack` または `mock`)。   |
-| `channel`                     | デフォルトの送信先チャンネル。               |
-| `token`                       | 認証トークン（セキュアなプロンプトで入力）。 |
-| `username`                    | 投稿時のデフォルト表示名。                   |
-| `limits.max_file_size_bytes`  | アップロードファイルの最大サイズ（バイト）。  |
-| `limits.max_stdin_size_bytes` | 標準入力の最大読み込みサイズ（バイト）。      |
+入力の優先順は引数、`--from-file`、stdinです。`--format` は `text`、`blocks`
+（配列またはblocksを含むobject）、`payload` に対応します。payloadの対象フィールドは
+`text`、`blocks`、`attachments`、`unfurl_links`、`unfurl_media`、`mrkdwn`。
+宛先と実行名義はJSONでなくCLI/configから決めます。追加フラグは `--username`、`--icon-emoji`、
+`--thread`、`--unfurl-links`、`--unfurl-media`、`--mrkdwn`。
+明示したCLIの真偽値はpayloadより優先します。名前・アイコン変更にはSlackの権限と適切な許可が必要です。
 
-### `channel` サブコマンド
+postはtimestampを出力し、`--json` なら `{"ts":"...","channel":"..."}` を出力します。
+`--user` はDMを開き、明示的な `--channel` とは併用できません。
 
-| サブコマンド | 説明                                                     |
-| ---------- | -------------------------------------------------------- |
-| `list`     | チャンネルを名前とIDとともに一覧表示します。              |
-| `create`   | 新しいチャンネルを作成します。                           |
-| `invite`   | チャンネルにユーザーやユーザーグループを招待します。       |
-
-#### `channel list` フラグ
-
-| フラグ               | 説明                                         |
-| -------------------- | -------------------------------------------- |
-| `--profile` / `-p`   | このコマンドで使用するプロファイルを指定します。|
-| `--json`             | テーブルの代わりにJSON形式で出力します。       |
-
-#### `channel create` フラグ
-
-```bash
-scat channel create <チャンネル名> [フラグ]
+```sh
+tail -f service.log | scat post --stream -c C0123456789
+printf 'pipeline text\n' | scat post --tee
 ```
 
-| フラグ               | 説明                                                     |
-| -------------------- | -------------------------------------------------------- |
-| `--profile` / `-p`   | このコマンドで使用するプロファイルを指定します。           |
-| `--description`      | チャンネルの説明を設定します。                           |
-| `--topic`            | チャンネルのトピックを設定します。                       |
-| `--private`          | プライベートチャンネルとして作成します。                 |
-| `--invite`           | 招待するユーザーやユーザーグループ（カンマ区切り）。     |
+streamは3秒ごと、または4,000 Unicode文字ごとに送信し、EOFで残りを送ります。
+入力・送信失敗とキャンセルはエラーです。stdin上限はstreamを含む呼び出し全体に適用します。
+thread・書式指定は全バッチに適用します。`--tee` はtext stdinをstdoutへ複製し、結果IDを抑制します。
+`--json`、引数・ファイル入力、構造化形式との併用は拒否します。
+streamはtext stdinだけに対応し、`--dry-run` を拒否します。
 
-#### `channel invite` フラグ
-
-```bash
-scat channel invite <チャンネル> <ユーザーまたはグループ> [ユーザーまたはグループ...]
+```sh
+scat upload --file report.pdf -c C0123456789 --comment 'Report'
+cat report.pdf | scat upload --file - --filename report.pdf --user U0123456789
+scat upload --file report.pdf -c C0123456789 --thread 1704067200.123456
 ```
 
-ユーザーは表示名 (例: `alice`) または `@` プレフィックス付き (例: `@alice`) で指定できます。ユーザーグループはハンドル名 (例: `@team-infra`) で指定できます。
+uploadにも `--dry-run` があり、stdinには `--filename` が必須です。ファイル入力は通常ファイルに限ります。
+入力はメモリ使用量を制限しながらprivate一時snapshotへ固定します。割当前に宛先への参加状況を確認し、
+バイト転送後に明示的なchannelと任意の**親**timestampで共有を完了します。
+完了成功後だけfile IDを出力し、`--json` では `{"files":[{"id":"..."}],"channel":"..."}` を返します。
+完了処理は429を含め自動再送しません。結果が不明ならfile IDと段階を報告します。
+ファイル共有のbroadcastは非対応です。
 
-| フラグ               | 説明                                                     |
-| -------------------- | -------------------------------------------------------- |
-| `--profile` / `-p`   | このコマンドで使用するプロファイルを指定します。           |
-
-### `user` サブコマンド
-
-| サブコマンド | 説明                                         |
-| ---------- | -------------------------------------------- |
-| `list`     | ユーザーを名前とIDとともに一覧表示します。   |
-
-#### `user list` フラグ
-
-| フラグ               | 説明                                         |
-| -------------------- | -------------------------------------------- |
-| `--profile` / `-p`   | このコマンドで使用するプロファイルを指定します。|
-| `--json`             | テーブルの代わりにJSON形式で出力します。       |
-
-### `config` サブコマンド
-
-| コマンド             | 説明                                           |
-| ------------------- | ---------------------------------------------- |
-| `config init`       | 新しいデフォルト設定ファイルを作成します。       |
-
----
-
-## サーバーモード（コンテナ / CI デプロイ）
-
-サーバーサイドやコンテナ化された環境向けに、`scat` は**サーバーモード**をサポートしています。このモードでは、設定ファイルを使用せず、すべての設定を環境変数から読み込みます。
-
-### サーバーモードの有効化
-
-`SCAT_MODE=server` 環境変数を設定します。プロファイルの設定は以下の環境変数で指定します:
-
-| 変数 | 必須 | 説明 |
-| --- | --- | --- |
-| `SCAT_MODE` | はい | `server` に設定するとサーバーモードが有効になります。 |
-| `SCAT_PROVIDER` | はい | プロバイダ名 (例: `slack`)。 |
-| `SCAT_TOKEN` | はい | 認証トークン。 |
-| `SCAT_CHANNEL` | いいえ | デフォルトの送信先チャンネル。 |
-| `SCAT_USERNAME` | いいえ | デフォルトの表示名。 |
-| `SCAT_MAX_FILE_SIZE` | いいえ | アップロードファイルの最大サイズ（バイト、デフォルト: 1073741824 = 1 GB）。 |
-| `SCAT_MAX_STDIN_SIZE` | いいえ | 標準入力の最大読み込みサイズ（バイト、デフォルト: 10485760 = 10 MB）。 |
-
-### 使用例
-
-```bash
-export SCAT_MODE=server
-export SCAT_PROVIDER=slack
-export SCAT_TOKEN=xoxb-xxxxxxxxxxxx
-export SCAT_CHANNEL="#deploy-notify"
-
-echo "Deployed v1.2.0" | scat post
+```sh
+scat channel list --json
+scat user list --json
+scat channel create alerts --topic 'Service alerts' --description 'Automation' --invite U0123456789
+scat channel invite C0123456789 U0123456789 @on-call
 ```
 
-### Kubernetes での使用例
+一覧は選択profileだけを対象にし、JSONは配列です。ID指定なら名前一覧取得を避け、曖昧な名前はエラーにします。
+招待はユーザー・ユーザーグループに対応し、グループIDならユーザー名検索を避けます。
+作成はIDまたは `{"id":"...","name":"..."}` を出力します。
+招待JSONは `{"channel":"...","users":["..."]}`、通常表示はstderrです。
+create/inviteは `--dry-run` に対応し、その際は名前解決しません。
+作成後のtopic・purpose設定や招待が失敗した場合は作成済みIDを報告し、自動再作成・削除を行いません。
 
-Kubernetes Secret からトークンを注入することで、設定ファイルもボリュームマウントも不要です:
+## Export
 
-```yaml
-env:
-  - name: SCAT_MODE
-    value: "server"
-  - name: SCAT_PROVIDER
-    value: "slack"
-  - name: SCAT_CHANNEL
-    value: "#alerts"
-  - name: SCAT_TOKEN
-    valueFrom:
-      secretKeyRef:
-        name: slack-credentials
-        key: token
+```sh
+scat channel export C0123456789 --output messages.json --save-dir attachments
+scat channel export '#general' --start 2024-01-01T00:00:00Z --end 2024-02-01T00:00:00Z
+scat channel export C0123456789 --format text
 ```
 
-### サーバーモードでの制約
+exportは[scliのデータモデル](docs/ja/EXPORT_FORMAT.ja.md)に合わせ、リッチ添付、raw blocks/text、
+ファイルmetadataを保持します。既定はJSON、`--output -` はstdoutです。
+`--format text` は同じ取得データを表示し、`--json` とは併用できません。
 
-サーバーモードでは以下の操作は利用できず、エラーが返されます:
+**期間は親を排他的な境界で選び、選択したスレッドの返信をすべて取得します。**
+期間外の返信も含まれます。選択されなかった古い親への新しい返信を網羅する機能ではありません。
+出力は親とその返信の順で、全体の時系列順ではありません。broadcast返信の重複を除去します。
 
-- `--config` フラグ（設定ファイルは完全に無視されます）
-- `--profile` フラグ（環境変数で設定されたプロファイルのみ使用されます）
-- すべての `profile` サブコマンド（`add`, `use`, `list`, `set`, `remove`）
-- `config init`
+メッセージ・スレッド取得失敗では、出力前にexport全体をエラーにします。名前補完やファイル保存の失敗では
+警告とID/metadataを保持し、未保存ファイルの `local_path` は空文字になります。
+`--quiet` でも警告は表示します。出力・添付ファイルは書込成功後だけ置き換えます。
+後段でexportが失敗しても、それまでに保存した添付は残ることがあります。
+scliと同様に、exportのメモリ使用量は取得履歴に比例します。
 
----
+downloadは認証redirectを制限し、HTTP 200のログインHTMLを添付と区別します。
+正当なHTML/JSONはmetadataと応答を照合して保持し、判別不能なら警告して保存に失敗します。
+添付名から指定ディレクトリ外へ書き込ませず、既存のsymlink保存先は拒否します。
+APIは30秒、ファイル転送は30分のtimeoutで、キャンセル可能です。HTTP 429の再試行回数を制限し、
+結果不明の変更操作とupload完了処理は再送しません。
 
-## ビルド (Building)
+## v1からの移行
 
-```bash
-make build      # 現在のプラットフォーム向けにビルド → dist/scat
-make build-all  # 全プラットフォーム向けにクロスコンパイル → dist/<binary>-<goos>-<goarch>[.exe]
-make package    # ビルド + .zip アーカイブを作成 → dist/
-make test       # テストスイートを実行
-make clean      # dist/ を削除
-```
+更新前に設定とスクリプトをバックアップしてください。**全profile**から `provider` と `endpoint` を削除し、
+`SCAT_PROVIDER` を解除します。旧フィールドは移行案内付きエラーにし、mock設定を黙って実botへ変換しません。
+botの資格情報はpromptまたはサービス環境変数から設定します。既存exportは変更しません。
 
-## 謝辞 (Acknowledgements)
+| v1 | v2 |
+|----|----|
+| `export log --channel X` | `channel export X` |
+| `--start-time`、`--end-time` | `--start`、`--end` |
+| `--output-files DIR` | `--save-dir DIR`（保存先を明示。autoなし） |
+| `--output-format` | exportの `--format` |
+| `--silent`、`--iconemoji`、`--noop` | `--quiet`、`--icon-emoji`、`--dry-run` |
+| `--provider`、uploadの `--filetype` | 撤去 |
+| 全profileを一括一覧 | `--profile` で個別選択 |
+| メンション置換・全体時系列順 | 原文・スレッド単位の順序 |
 
-このプロジェクトは、[bcicen/slackcat](https://github.com/bcicen/slackcat) のコンセプトに強くインスパイアされ、またその影響を受けています。ファイルや標準入力のストリーミングを処理し投稿するコアロジックは、オリジナルの `slackcat` のコードベースを参考に再実装されました。`slackcat` も同じくMITライセンスで配布されています。
-
-## ライセンス (License)
-
-このプロジェクトはMITライセンスの下で公開されています。詳細は [LICENSE](LICENSE) ファイルをご覧ください。
+恒久的な互換aliasや実行時mock providerはありません。テストではHTTPとI/Oを注入します。
+dry-runはローカル入力を検証し、秘密情報を含まない要約をstderrへ表示します。成功IDは出力せず、
+botの本人確認・外部権限確認も行いません。
