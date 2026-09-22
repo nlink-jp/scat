@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `make clean` no longer fails partway. The module cache inside the repository
+  holds read-only files, so `rm -rf .cache` stopped with "Permission denied" and
+  left a half-deleted cache; `go clean -modcache` removes it first.
+
 ## [2.1.1] - 2026-09-23
 
 ### Fixed

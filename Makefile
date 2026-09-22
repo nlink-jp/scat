@@ -124,7 +124,11 @@ vulncheck:
 
 ## clean: Remove dist/ and caches
 clean:
-	rm -rf $(OUTPUT_DIR) .cache
+	rm -rf $(OUTPUT_DIR)
+	@# The module cache holds read-only files, so rm alone fails partway and
+	@# leaves a half-deleted cache behind. go clean -modcache removes it.
+	-go clean -modcache
+	rm -rf .cache
 
 ## help: Show this help
 help:
