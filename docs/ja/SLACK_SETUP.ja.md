@@ -5,7 +5,7 @@
 ## マニフェストからアプリを作成
 
 [slack-app-manifest.json](../../slack-app-manifest.json)を使うと、botと権限を一括で設定できます。
-このcheckoutから作る配布アーカイブにも、binaryと同じ場所に同梱します。
+配布アーカイブにはbinary・README・LICENSEだけが入るため、このファイルはリポジトリから取得してください。
 トークン・workspace ID・callback URLを含まないため、複数workspaceで使い回せます。
 
 1. [Your Apps](https://api.slack.com/apps)で **Create New App → From a manifest** を選び、

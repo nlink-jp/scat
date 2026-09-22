@@ -35,8 +35,8 @@ changes here. After pushing, update the umbrella gitlink in a separate commit.
 Do not replace the submodule with a directory or point the umbrella at an
 unpublished commit. Keep other submodules untouched.
 
-`make package` includes `slack-app-manifest.json` beside the binary, README and
-license in each platform archive. It builds release archives and requests macOS notarization;
+`make package` builds the release archives — the canonical binary, `README.md`
+and `LICENSE`, per the org Release Archive Standard — and requests macOS notarization;
 `make verify-release` checks the notarized archive and version before publication.
 `make brew` generates the Homebrew formula. Follow the org release/signing policy;
 a successful local ad-hoc build is not a notarized release. Live Slack checks and

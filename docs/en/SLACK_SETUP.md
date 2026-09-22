@@ -5,8 +5,8 @@
 ## Create an app from the manifest
 
 Use [slack-app-manifest.json](../../slack-app-manifest.json) to configure the bot
-and its scopes in one import. The same file is included beside the binary in
-release archives produced from this checkout. It contains no tokens, workspace
+and its scopes in one import. Release archives hold only the binary, README and
+license, so take this file from the repository. It contains no tokens, workspace
 IDs or callback URLs and can be reused across workspaces.
 
 1. Open [Your Apps](https://api.slack.com/apps), choose **Create New App → From a manifest**,
