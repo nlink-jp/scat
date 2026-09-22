@@ -9,18 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a bot-only Slack App Manifest with scopes for existing CLI features, include
-  it in release archives, and document manifest-based installation and app updates
-  in English and Japanese. Validate the permission/credential boundary in tests.
-  Suppress macOS AppleDouble entries when assembling Linux archives.
+- Add a bot-only Slack App Manifest (`slack-app-manifest.json`) whose scopes cover
+  the existing CLI features, and document manifest-based installation and app
+  updates in English and Japanese. Tests pin the scope set in both directions and
+  reject user scopes, credentials and unknown manifest fields.
+
+### Fixed
+
+- Keep macOS extended attributes out of the Linux release archives. `tar` on macOS
+  stored them as `LIBARCHIVE.xattr.*` / `SCHILY.xattr.*` pax headers, which GNU tar
+  reports as unknown keywords on extraction; `COPYFILE_DISABLE=1` suppresses them.
+
+### Docs
+
+- Document `channel create --private`, the `profile add` flags and the `upload`
+  short forms. The v2 rewrite dropped them from the READMEs while the flags stayed.
+- Record in [ADR-0001](docs/en/adr/0001-slack-bot-renewal.md) why the manifest
+  requests the union of the scopes rather than one set per enabled operation.
+
+### Internal
+
+- Cover `channel create --private`, which had no test.
+- Remove the v1 `.gemini/GEMINI.md` agent guide. It described the removed provider
+  interface and a workflow that contradicts AGENTS.md and CONTRIBUTING.md.
 
 ## [2.0.0] - 2026-09-22
 
+### Removed
+
+- **Breaking:** Remove runtime provider registration, capabilities, mock/test
+  providers, endpoint fields and `SCAT_PROVIDER`; scat is Slack-only and
+  bot-authenticated. Named bot profiles are preserved; legacy configuration is
+  rejected with explicit migration guidance.
+
 ### Changed
 
-- **Breaking:** Make scat Slack-only and bot-authenticated; remove runtime provider registration,
-  capabilities, mock/test providers, endpoint fields and SCAT_PROVIDER. Preserve
-  named bot profiles; reject legacy configuration with explicit migration guidance.
 - Replace startup-wide resolution with invocation-scoped dependencies, lazy ID/name
   resolution, bot identity verification and environment-only service configuration.
 - Align export with scli: rich attachments/blocks, raw text, explicit empty arrays,
@@ -35,13 +58,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Require Go 1.25+ for anchored rename. Add synthetic export fixtures, injected
   transport/command tests and make fmt / make vulncheck targets.
 
-
 ### Added
 
 - Add `make e2e`: uncached tests driving the built CLI against a dedicated real
   Slack channel, including post/reply/stream, service-mode tee, binary/HTML/JSON
   file round trips, export schema/parent bounds, invalid credentials and cleanup.
   Missing live configuration fails instead of silently skipping validation.
+- Add `make verify-release`, which refuses to release a darwin zip that is
+  un-notarized, stale, does not unpack, does not run, or holds a build from
+  another tag. Every step fails on its own; only the `spctl` line is
+  informational. Matches the org template (CONVENTIONS.md §Code Signing →
+  Verifying a release).
+- Add `make brew`, which generates the Homebrew formula for the tap from the
+  built darwin-arm64 zip.
 
 ### Fixed
 
@@ -49,26 +78,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recorded size match, even when Slack labels HTML/JSON as `text/plain`. Real
   round-trip tests exposed the MIME mismatch; login responses and untrusted or
   mismatched attachments remain rejected.
-
 - Give cancellation priority over stream EOF and check it before committing a
   downloaded attachment; retain the previous destination on cancellation.
 
-- **`make verify-release` now fails closed.** Its last block chained unzip, the
-  packaged binary's `--version` and `spctl` with `&&` and ended the whole chain
-  in `|| true`, so a zip that did not unpack or a binary that did not run exited
-  0 and the upload proceeded. Each step is now judged on its own, the packaged
-  binary's `--version` must contain the tag being released, and only the
-  informational `spctl` line may be ignored. Matches the org template
-  (CONVENTIONS.md §Code Signing → Verifying a release).
+### Docs
 
-### Documentation
-
+- Move the English documents under `docs/en/` and add the Japanese counterparts
+  under `docs/ja/`, per the org documentation layout.
 - Label historical development plans as v1 records and explicitly document v2
   invitations to existing channels, separately from live verification coverage.
-
 - Clarify the organization main/submodule workflow; independent review does not
   require pull requests. Remove mutable release-status prose from the READMEs.
-
 - Record accepted [ADR-0001](docs/en/adr/0001-slack-bot-renewal.md) and its
   Japanese mirror; replace the v1 setup/build/export guides with v2 contracts,
   migration steps and project-specific agent guidance.
