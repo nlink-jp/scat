@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   holds read-only files, so `rm -rf .cache` stopped with "Permission denied" and
   left a half-deleted cache; `go clean -modcache` removes it first.
 
+### Internal
+
+- `make verify-release`'s Linux-archive check could not see AppleDouble members.
+  macOS `tar` folds `._` members out of a plain listing, so an archive built
+  with `--no-xattrs` but without `COPYFILE_DISABLE=1` passed with stray `._`
+  files inside; the check now lists with `--options 'tar:!mac-ext'`. The entry
+  list is compared in the C locale, so a correct archive is not refused when the
+  gate runs under a UTF-8 locale, and a refusal states the expected list. The
+  v2.1.1 archives were built with both settings; only the check was blind.
+
 ## [2.1.1] - 2026-09-23
 
 ### Fixed
