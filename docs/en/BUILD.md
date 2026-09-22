@@ -39,7 +39,7 @@ unpublished commit. Keep other submodules untouched.
 `make verify-release` checks the notarized archive and version before publication.
 `make brew` generates the Homebrew formula. Follow the org release/signing policy;
 a successful local ad-hoc build is not a notarized release. Live Slack checks and
-publication remain separate gates; this renewal branch does not publish v2.
+publication follow the separate release gates.
 
 The static scan `gosec ./...` reports G119 on scoped Authorization re-attachment
 to Slack sibling hosts. Following the knowledge entry, this finding is retained

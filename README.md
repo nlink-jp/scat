@@ -6,9 +6,8 @@ A Slack CLI for services using **bot credentials**. `scli` is the sibling CLI fo
 people using user credentials. scat retains multiple workspace profiles while
 removing the unused multi-service provider layer.
 
-This branch implements the breaking **v2 renewal**; it is not a published v2
-release. See [ADR-0001](docs/en/adr/0001-slack-bot-renewal.md) and
-[migration](#migration-from-v1).
+See [ADR-0001](docs/en/adr/0001-slack-bot-renewal.md) for the renewal contract
+and [migration](#migration-from-v1) for breaking interface changes.
 
 ## Setup
 

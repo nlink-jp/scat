@@ -15,8 +15,8 @@ Japanese: [日本語](../../ja/adr/0001-slack-bot-renewal.ja.md).
 scli is used by people with user permissions. scat is used by services with
 bot permissions. The renewal keeps that distinction and makes scat Slack-only.
 The maintainer has agreed to prioritize consistent behavior over backwards
-compatibility. This record was approved before implementation. The implementation is on the v2
-development branch; publication and live Slack verification are separate gates.
+compatibility. This record was approved before implementation. The implementation follows
+the submodule main workflow; publication and live Slack verification are separate gates.
 
 The comparison baseline is scat `24cfd70`, scli `854e6a0`, swrite `c47d9e3`, and
 stail `1323ef2`. scli's export is the reference because it covers threads, rich
@@ -308,7 +308,7 @@ internal/input/         cancellation of blocking local input
 testdata/export/        synthetic API input and expected scli-compatible JSON
 ```
 
-Replace the provider boundary incrementally on a dedicated development branch,
+Replace the provider boundary incrementally on main in the existing submodule,
 preserving history and useful fixtures/tests. Small consumer-owned interfaces
 or injected RoundTrippers replace runtime mock providers. No scli/swrite executable
 dependency and no import of another repository's `internal` packages. Record
@@ -355,7 +355,7 @@ Existing export files are not rewritten; scat has no import command.
    vulnerability scan must pass. Validate bot access with a dedicated fixture
    workspace; tests that post/create/invite require explicit permission to use it.
    Then follow org release/signing/`verify-release`/Homebrew/umbrella/catalog and
-   `check-org.sh` gates. Publication remains separate from this implementation branch.
+   `check-org.sh` gates. Publication follows the separate release gates.
 
 Critical tests: multiple cursor pages including a short non-final page; repeated
 or missing cursor; broadcast duplicates; parent outside interval; reply outside

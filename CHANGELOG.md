@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Clarify the organization main/submodule workflow; independent review does not
+  require pull requests. Remove mutable release-status prose from the READMEs.
+
 - Record accepted [ADR-0001](docs/en/adr/0001-slack-bot-renewal.md) and its
   Japanese mirror; replace the v1 setup/build/export guides with v2 contracts,
   migration steps and project-specific agent guidance.

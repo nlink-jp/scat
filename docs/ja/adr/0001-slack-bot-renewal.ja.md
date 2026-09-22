@@ -14,7 +14,7 @@ English: [English](../../en/adr/0001-slack-bot-renewal.md).
 
 scli は人がユーザー権限で使う。scat はサービスがボット権限で使う。
 この棲み分けを維持し、scat を Slack 専用にする。メンテナーは後方互換性より
-動作の統一を優先することに合意した。本記録は実装前に承認した仕様である。実装はv2開発ブランチに反映し、公開リリースと実Slack検証は別gateとする。
+動作の統一を優先することに合意した。本記録は実装前に承認した仕様である。実装はsubmoduleのmainで扱い、公開リリースと実Slack検証は別gateとする。
 
 比較基準は scat `24cfd70`、scli `854e6a0`、swrite `c47d9e3`、stail `1323ef2`。
 スレッド、リッチ添付、Block Kit、ファイル保存を扱う scli の export を基準にする。
@@ -278,7 +278,7 @@ internal/input/         ブロックするローカル入力のキャンセル
 testdata/export/        合成API入力とscli互換の期待JSON
 ```
 
-開発用ブランチでprovider境界を段階的に置き換え、履歴と有用なfixture・テストを保持する。
+既存submoduleのmainでprovider境界を段階的に置き換え、履歴と有用なfixture・テストを保持する。
 利用側が定義する小さなinterfaceやRoundTripper注入で、実行時mock providerを置き換える。
 scli/swrite実行ファイルには依存せず、別リポジトリの `internal` をimportしない。
 採用した動作と参照commitを記録し、scat内のfixtureで整合を検証する。
@@ -320,7 +320,7 @@ mockプロファイルを実botと解釈し直したり、読み込み時に資�
    脆弱性検査を通す。専用のfixture workspaceでbot実権限を確認する。
    投稿・作成・招待を行う実環境テストには、その利用の明示的な許可が必要。
    その後、組織のrelease・署名・`verify-release`・Homebrew・umbrella・カタログ・
-   `check-org.sh` の手順を実施する。公開は実装ブランチとは別のgateとする。
+   `check-org.sh` の手順を実施する。公開は別のリリースgateに従う。
 
 重点テスト: 短い非最終ページを含む複数ページ、cursor再出現・欠落、broadcast重複、
 期間外の親、期間外の返信、bot/user ID、メンション原文、権限失敗、保存失敗でも情報保持、

@@ -36,7 +36,7 @@ submoduleを通常ディレクトリに置き換えたり、未公開commitを�
 `make verify-release` は公開前にnotarized archiveとversionを検証します。
 `make brew` はHomebrew formulaを生成します。組織のrelease・署名規約に従ってください。
 ローカルのad-hocビルド成功はnotarized releaseを意味しません。
-実Slack検証と公開は別のgateで、この刷新ブランチではv2を公開しません。
+実Slack検証と公開は別のリリースgateに従います。
 
 静的検査の `gosec ./...` は、Slack兄弟hostに限定したAuthorization再付与にG119を報告します。
 ナレッジの指示に従い、この警告は抑制せず、該当箇所に理由と許可・拒否両側のテスト名を記載しています。

@@ -5,8 +5,8 @@
 scat is the service-facing, bot-authenticated Slack tool in chatops-series.
 The v2 implementation removes the generic provider layer and follows accepted
 [ADR-0001](docs/en/adr/0001-slack-bot-renewal.md)
-([日本語](docs/ja/adr/0001-slack-bot-renewal.ja.md)). This is an unreleased renewal;
-do not describe it as a published v2 release. scli remains the user-authenticated sibling.
+([日本語](docs/ja/adr/0001-slack-bot-renewal.ja.md)). scli remains the user-authenticated sibling. Release status comes from Git tags,
+not prose banners.
 
 Follow the [organization conventions](https://github.com/nlink-jp/.github/blob/main/CONVENTIONS.md)
 and [CONTRIBUTING.md](CONTRIBUTING.md). The renewal's product direction is agreed;
@@ -15,7 +15,8 @@ its detailed implementation contract was approved on 2026-09-22.
 ## Repository boundary
 
 This checkout is the `scat` submodule of `nlink-jp/chatops-series`, declared in
-the umbrella's `.gitmodules`. Commit scat source and documentation in this
+the umbrella's `.gitmodules`. Check out `main` before changing the submodule,
+as required by the organization. Commit scat source and documentation in this
 repository. After pushing the scat commit, update and commit the `scat` gitlink
 in the umbrella separately; never record an unpublished commit there. Preserve
 the submodule registration and verify both repositories' status before and after

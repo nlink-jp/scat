@@ -5,8 +5,10 @@ and [AGENTS.md](AGENTS.md). scat is a Slack-only bot CLI; scli owns human/user
 credentials. Read [ADR-0001](docs/en/adr/0001-slack-bot-renewal.md) before changing
 this boundary or the export contract.
 
-1. Work on a development branch in this repository. This checkout is an umbrella
-   submodule; do not turn it into an ordinary directory.
+1. For maintainer work in this umbrella submodule, check out `main` before
+   changes, following the organization workflow. Do not turn the submodule into
+   an ordinary directory. External contributors may submit pull requests;
+   independent review does not itself require a PR.
 2. Write or update tests with behavior changes. Use `cmd.NewCommand(Dependencies)`
    and injected HTTP RoundTrippers; constructors must not perform I/O. Do not add
    runtime mock providers, global test hooks, or unchecked context assertions.
@@ -19,7 +21,7 @@ this boundary or the export contract.
    tests before committing. Obtain an independent implementation review.
 6. Push scat before updating the umbrella's `scat` gitlink in a separate commit.
    Feed verified reusable lessons back to knowledge and run `check-org.sh` after
-   integration. Review branches do not authorize merging, tagging or release.
+   integration. Follow the separate release checklist when publishing a version.
 
 Report bugs with the version, OS, exact command (secrets removed), expected and
 actual behavior. Safe `--debug` output may help; do not post raw tokens, signed
