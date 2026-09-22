@@ -45,6 +45,8 @@ scat profile remove unused-profile
 scat cache clear
 ```
 
+`profile add` は `--channel`、`--username`、`--limits-max-file-size-bytes`、
+`--limits-max-stdin-size-bytes` に対応します。トークンは後から `profile set token` で設定します。
 `profile set` は `channel`、`username`、`token`、上記2つのlimitキーに対応します。
 `--profile` は `profile set` の対象選択にも使えます。default/使用中profileは削除できません。
 上限は非負で、**0は保存・再読込後も無制限**です。名前解決のcacheは呼び出し内だけで、
@@ -103,7 +105,8 @@ cat report.pdf | scat upload --file - --filename report.pdf --user U0123456789
 scat upload --file report.pdf -c C0123456789 --thread 1704067200.123456
 ```
 
-uploadにも `--dry-run` があり、stdinには `--filename` が必須です。ファイル入力は通常ファイルに限ります。
+uploadにも `--dry-run` があり、stdinには `--filename` が必須です。
+短縮形は `-f`（`--file`）、`-c`（`--channel`）、`-m`（`--comment`）です。ファイル入力は通常ファイルに限ります。
 入力はメモリ使用量を制限しながらprivate一時snapshotへ固定します。割当前に宛先への参加状況を確認し、
 バイト転送後に明示的なchannelと任意の**親**timestampで共有を完了します。
 完了成功後だけfile IDを出力し、`--json` では `{"files":[{"id":"..."}],"channel":"..."}` を返します。
@@ -114,6 +117,7 @@ uploadにも `--dry-run` があり、stdinには `--filename` が必須です。
 scat channel list --json
 scat user list --json
 scat channel create alerts --topic 'Service alerts' --description 'Automation' --invite U0123456789
+scat channel create incident-2024-01 --private --invite U0123456789
 scat channel invite C0123456789 U0123456789 @on-call
 ```
 
@@ -122,6 +126,7 @@ scat channel invite C0123456789 U0123456789 @on-call
 招待はユーザー・ユーザーグループに対応し、グループIDならユーザー名検索を避けます。
 作成はIDまたは `{"id":"...","name":"..."}` を出力します。
 招待JSONは `{"channel":"...","users":["..."]}`、通常表示はstderrです。
+`channel create --private` はprivate channelを作成します。botは参加している間だけ扱えます。
 create/inviteは `--dry-run` に対応し、その際は名前解決しません。
 作成後のtopic・purpose設定や招待が失敗した場合は作成済みIDを報告し、自動再作成・削除を行いません。
 

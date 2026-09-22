@@ -47,6 +47,8 @@ scat profile remove unused-profile
 scat cache clear
 ```
 
+`profile add` accepts `--channel`, `--username`, `--limits-max-file-size-bytes` and
+`--limits-max-stdin-size-bytes`; a token is set afterwards with `profile set token`.
 `profile set` accepts `channel`, `username`, `token`, and the two limit keys above.
 `--profile` also selects the target of `profile set`. Default/active profiles cannot
 be removed. Limits must be nonnegative; **0 remains unlimited after save/load**.
@@ -110,7 +112,8 @@ cat report.pdf | scat upload --file - --filename report.pdf --user U0123456789
 scat upload --file report.pdf -c C0123456789 --thread 1704067200.123456
 ```
 
-Upload also accepts `--dry-run`; stdin requires `--filename`. File inputs must be
+Upload also accepts `--dry-run`; stdin requires `--filename`. Short forms are
+`-f` (`--file`), `-c` (`--channel`) and `-m` (`--comment`). File inputs must be
 regular files. Inputs are staged in a private temporary snapshot with bounded
 memory. Upload checks destination membership before allocation, transfers bytes,
 and completes sharing with an explicit channel and optional **parent** timestamp.
@@ -123,6 +126,7 @@ reports file ID and stage. File-share broadcast is not supported.
 scat channel list --json
 scat user list --json
 scat channel create alerts --topic 'Service alerts' --description 'Automation' --invite U0123456789
+scat channel create incident-2024-01 --private --invite U0123456789
 scat channel invite C0123456789 U0123456789 @on-call
 ```
 
@@ -130,6 +134,8 @@ Lists concern only the selected profile and return JSON arrays. IDs avoid name
 listing; ambiguous names fail. Invitations accept users or user groups; group IDs
 avoid user-name lookup. Creation prints its ID or `{"id":"...","name":"..."}`.
 Invitation JSON is `{"channel":"...","users":["..."]}`; plain mode uses stderr.
+`channel create --private` creates a private channel, which the bot can only
+reach while it is a member.
 `channel invite` adds users to an existing channel, independently of creation-time
 `channel create --invite`.
 
