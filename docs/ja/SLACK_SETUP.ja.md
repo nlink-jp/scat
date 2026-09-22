@@ -43,6 +43,12 @@ downloadはHTTP 200でもログインHTMLが返ることがあります。Bearer
 で再付与し、外部hostやHTTPS降格先には送りません。権限不足を直すために転送範囲の制約を外さないでください。
 名前補完・ファイル保存の警告はexport metadataを保持し、必須のhistory/replies取得失敗は全体エラーになります。
 
+SlackはHTML/JSON添付を `text/plain` と分類し、元のバイトを
+`application/force-download` で返す場合があります。scatは認証済みSlack host、
+`Content-Disposition` のファイル名一致、記録サイズを確認してこのMIME差を許容します。
+拡張子やHTTP 200だけでは許可せず、既知のログインHTMLは引き続き拒否します。
+実際の往復検証は[BUILD](BUILD.ja.md#実slack-e2e)を参照してください。
+
 実Slackでのpost/upload/downloadテストには、明示的に利用を許可されたfixture workspace/channelが必要です。
 オフラインテストの成功は実権限・配信を確認したことにはなりません。
 

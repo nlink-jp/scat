@@ -29,6 +29,9 @@ integration. Run the organization check after the pointer update.
 - `make check`: `go vet ./...` and `go test ./...`.
 - `make test`: full Go suite; `make test GOFLAGS=-race`: race detector. Tests
   inject `http.RoundTripper` and require no listeners or real Slack credentials.
+- `make e2e`: builds the CLI and runs uncached live Slack round trips; requires
+  `SCAT_E2E_CONFIG` and `SCAT_E2E_CHANNEL` for a dedicated bot/test channel.
+  Missing settings fail, and cleanup deletes only this run's messages/files.
 - `make fmt`: format with project-local caches.
 - `make vulncheck`: reachable-vulnerability scan; needs govulncheck and network.
 - Go 1.25+ is required for `os.Root.Rename` (anchored attachment replacement).
@@ -45,6 +48,7 @@ integration. Run the organization check after the pointer update.
 - `internal/slack/`: bot identity, API calls, lazy resolution, posting and files.
 - `internal/export/`: scli-compatible model, selection, rendering, atomic output.
 - `internal/input/`: cancelable blocking input adapter; the CLI owns one invocation.
+- `e2e/`: opt-in real Slack binary tests (`-tags=e2e`), including cleanup.
 - `testdata/export/`: synthetic reference JSON and golden output.
 - `docs/en/`, `docs/ja/`: paired documentation; `docs/{en,ja}/adr/`: design decisions.
 - `scripts/`: vendored release tooling.
@@ -63,6 +67,9 @@ integration. Run the organization check after the pointer update.
   successful export. Optional enrichment/download failures have separate rules.
 - Preserve authenticated-download redirect containment. A copied HTTP client
   alone is not proof that Authorization stays inside the allowed domain.
+- Live Slack can label HTML/JSON metadata as text/plain and serve force-download.
+  MIME mismatch acceptance requires authenticated Slack attachment identity and
+  recorded-size verification; preserve login and foreign-host refusal tests.
 - File upload has separate allocation, byte-transfer and completion stages.
   Stage a bounded snapshot; never finalize a failed transfer or replay one-shot
   completion. See the ADR's file-transfer acceptance cases and knowledge links.
@@ -80,5 +87,6 @@ integration. Run the organization check after the pointer update.
 - Read reference projects' CLAUDE/AGENTS and mechanism-specific knowledge before
   porting. Independently review design and implementation as required by the org.
 - Keep README.md / README.ja.md, related docs, CHANGELOG and this file in sync.
-- Implementation approval does not authorize live Slack posting, uploads,
-  channel creation or invitations for testing; use offline fixtures.
+- Live verification uses an authorized dedicated test channel and bot configuration.
+  Do not treat offline success or skipped live tests as completed E2E.
+  Keep workspace IDs, tokens and raw live exports out of tracked artifacts.

@@ -408,3 +408,12 @@ separate-scat direction. Preserve their relevant field and download lessons.
 No local memory paths or private values belong in the committed document.
 Synthetic-test findings on timestamp rounding and file-response classification
 are fed back to knowledge. No new live Slack measurement is claimed.
+
+### Live verification follow-up — 2026-09-22
+
+The built CLI's dedicated-channel E2E now verifies bot posts, rich replies,
+stream threshold/EOF, environment-only tee, binary/HTML/JSON uploads and exact
+downloaded bytes, parent-bound export and real invalid-token failure, with cleanup.
+It exposed Slack's text/plain metadata plus force-download response for HTML/JSON;
+attachment identity and full-size validation correct the false rejection.
+See [BUILD](../BUILD.md#live-slack-e2e) for the repeatable command and precise scope.

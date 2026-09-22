@@ -23,6 +23,10 @@ scat profile set channel C0123456789
 
 [Slack設定とscope](docs/ja/SLACK_SETUP.ja.md) · [ビルドとテスト](docs/ja/BUILD.ja.md)
 
+実Slackでの動作確認には専用チャンネルで `make e2e` を実行します。
+CLIをビルドし、実際の投稿・スレッド・stream・ファイル往復・exportを照合します。
+[実E2Eの設定](docs/ja/BUILD.ja.md#実slack-e2e)を参照してください。設定不足はskipではなく失敗になります。
+
 設定ファイルは `~/.config/scat/config.json` です。新規ディレクトリは0700、資格情報ファイルは0600。
 既存ファイルの権限が広すぎる場合は警告します。default profileには最初は資格情報がなく、
 黙って投稿することはありません。外部操作前に `auth.test` でbotとworkspaceを確認します。

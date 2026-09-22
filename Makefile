@@ -22,7 +22,7 @@ _CACHE_INIT := $(shell mkdir -p "$(GOMODCACHE)" "$(GOCACHE)" "$(GOTMPDIR)")
 # darwin ships arm64 only (no amd64, no universal). linux/windows keep their matrix.
 PLATFORMS := darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: build build-all package verify-release test lint check fmt vulncheck clean help
+.PHONY: build build-all package verify-release test e2e lint check fmt vulncheck clean help
 
 ## build: Build binary for the current OS/Arch → dist/scat
 build:
@@ -88,6 +88,10 @@ verify-release:
 ## test: Run the test suite
 test:
 	go test ./...
+
+## e2e: Build and run live Slack round trips (requires dedicated bot config/channel)
+e2e: build
+	go test -tags=e2e -count=1 -timeout=10m -v ./e2e
 
 ## lint: Run linters
 lint:

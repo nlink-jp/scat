@@ -364,3 +364,12 @@ workspaceの指示とmemoryの `project_export_format`、`project_scli_bot_mode_
 旧stail基準と中断中のscli-bot案より、今回のscli-export基準・scat分離という明示的な決定を優先する。
 項目とダウンロードに関する有用な知見は保持する。memoryのローカルパスや私的な値は公開文書に含めない。
 実装テストで確認した境界時刻の丸めとファイル応答判定の知見をknowledgeへ還元する。実Slackでの新しい実測を主張しない。
+
+### 実Slack検証の追記 — 2026-09-22
+
+専用チャンネルで実バイナリのE2Eを行い、bot投稿・rich返信・streamの閾値/EOF・
+environment-onlyのtee・binary/HTML/JSONのuploadとdownloadバイト完全一致・
+親の期間指定export・実無効token時の失敗を、cleanupまで確認した。
+HTML/JSONのmetadataがtext/plain、HTTP応答がforce-downloadとなる実差異を検出し、
+添付identityと全体サイズの照合で誤拒否を修正した。
+再実行方法と対象範囲は[BUILD](../BUILD.ja.md#実slack-e2e)を参照。

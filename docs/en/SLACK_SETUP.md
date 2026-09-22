@@ -49,6 +49,12 @@ external hosts or on HTTPS downgrade. Do not remove containment checks to solve 
 permission problem. Name/file warnings retain export metadata, while mandatory
 history/reply failures are fatal.
 
+Slack may classify uploaded HTML/JSON as `text/plain` and serve the original bytes
+as `application/force-download`. scat checks authenticated Slack origin, matching
+`Content-Disposition` filename and recorded size before accepting this MIME mismatch.
+A filename extension or HTTP 200 alone is insufficient; recognized login HTML is
+still rejected. The real round-trip suite is documented in [BUILD](BUILD.md#live-slack-e2e).
+
 Live post/upload/download tests require an explicitly authorized fixture workspace
 and channel. Offline tests do not establish real Slack permissions or delivery.
 

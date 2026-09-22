@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/nlink-jp/scat/internal/input"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -258,7 +259,15 @@ func (c *Client) Download(ctx context.Context, f File, dir string) (string, erro
 	}
 	reader := bufio.NewReader(resp.Body)
 	prefix, _ := reader.Peek(4096)
-	if err = checkFileResponse(prefix, resp.Header.Get("Content-Type"), f.Mimetype, f.Size, withheld); err != nil {
+	// Slack may label uploaded HTML/JSON as text/plain and serve its original
+	// bytes as application/force-download. Require matching attachment identity
+	// on an authenticated Slack response; filename extensions alone prove nothing.
+	disposition, parameters, dispositionErr := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
+	contentType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	attachment := !withheld && trustedHost(resp.Request.URL) && dispositionErr == nil &&
+		disposition == "attachment" && parameters["filename"] == f.Name && f.Size > 0 &&
+		(contentType == "application/force-download" || contentType == "application/octet-stream")
+	if err = checkFileResponse(prefix, resp.Header.Get("Content-Type"), f.Mimetype, f.Size, withheld, attachment); err != nil {
 		return "", fmt.Errorf("download %s: %w", host, err)
 	}
 	n, err := copyBounded(transferCtx, dst, reader, c.maxFileSize)
@@ -282,16 +291,19 @@ func (c *Client) Download(ctx context.Context, f File, dir string) (string, erro
 	}
 	return filepath.Join(abs, name), nil
 }
-func checkFileResponse(prefix []byte, contentType, expected string, expectedSize int64, withheld bool) error {
+func checkFileResponse(prefix []byte, contentType, expected string, expectedSize int64, withheld, attachment bool) error {
 	var status struct {
 		OK    *bool  `json:"ok"`
 		Error string `json:"error"`
 	}
 	if json.Unmarshal(prefix, &status) == nil && status.OK != nil && !*status.OK && status.Error != "" {
 		// A JSON attachment can itself be a saved Slack error. Require the
-		// expected JSON metadata and exact recorded size before accepting it.
+		// expected JSON metadata and an exact small body, or authenticated
+		// attachment identity. For the latter, the complete copy (not this
+		// 4096-byte prefix) is checked against the recorded size below.
 		mime := strings.ToLower(strings.TrimSpace(strings.Split(expected, ";")[0]))
-		if withheld || !(mime == "application/json" || strings.HasSuffix(mime, "+json")) || expectedSize <= 0 || int64(len(prefix)) != expectedSize {
+		jsonFile := (mime == "application/json" || strings.HasSuffix(mime, "+json")) && expectedSize > 0 && int64(len(prefix)) == expectedSize
+		if withheld || !(attachment || jsonFile) {
 			return errors.New("file endpoint returned an API error or ambiguous JSON")
 		}
 	}
@@ -301,7 +313,7 @@ func checkFileResponse(prefix []byte, contentType, expected string, expectedSize
 		return nil
 	}
 	login := strings.Contains(s, "slack.com/signin") || strings.Contains(s, "sign in to slack") || strings.Contains(s, "slack.com/checkcookie") || strings.Contains(s, "name=\"signin\"") || strings.Contains(s, "id=\"signin_form\"")
-	if withheld || login || !strings.HasPrefix(strings.ToLower(expected), "text/html") {
+	if withheld || login || !(attachment || strings.HasPrefix(strings.ToLower(expected), "text/html")) {
 		return errors.New("HTML login or ambiguous file response; check files:read and file access")
 	}
 	return nil

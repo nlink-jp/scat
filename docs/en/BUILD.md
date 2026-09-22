@@ -15,7 +15,7 @@ make build-all    # darwin/arm64, linux/amd64, linux/arm64, windows/amd64
 make vulncheck    # requires govulncheck; accesses the vulnerability database
 ```
 
-Caches are under `.cache/`. Tests inject HTTP transports, time and I/O; they need
+Caches are under `.cache/`. Default tests inject HTTP transports, time and I/O; they need
 no network listeners, Slack tokens or live mutations. Synthetic export fixtures
 are tracked in `testdata/export/`. `internal/input` tests blocking-read cancellation.
 The command suite covers retained v1 behavior (argument/file/stdin input, profile
@@ -44,3 +44,29 @@ publication follow the separate release gates.
 The static scan `gosec ./...` reports G119 on scoped Authorization re-attachment
 to Slack sibling hosts. Following the knowledge entry, this finding is retained
 with its justification and both allowed/forbidden regression test names in place.
+
+## Live Slack E2E
+
+Use a dedicated channel that the test bot has already joined and a v2 config whose
+current profile holds that bot. Do not use a production channel. The test requires
+`chat:write`, `channels:read`, `channels:history`, `files:write` and `files:read`
+for a public channel (use the corresponding private-channel scopes when needed).
+A configured custom username also needs `chat:write.customize`.
+
+```sh
+SCAT_E2E_CONFIG=/absolute/path/to/test-config.json \
+SCAT_E2E_CHANNEL=C0123456789 make e2e
+```
+
+`make e2e` first builds `dist/scat`, then runs `go test -tags=e2e -count=1`.
+It fails when credentials, channel or binary are missing; it does not silently
+skip live validation. It creates uniquely marked root/reply/stream messages and
+binary, HTML and JSON files, verifies export schema and exact downloaded bytes,
+checks the exclusive parent interval retains later replies, exercises server-mode
+tee and invalid credentials, and deletes this run's files/messages. Cleanup
+failures fail the test. Configuration is read only; tokens are never arguments.
+Do not commit raw live exports, credentials or workspace-specific reports.
+
+This suite covers the post/upload/export round trip. Channel creation, invitations,
+DMs and artificial rate-limit/redirect/transfer failures remain separate cases;
+the default suite covers their injected requests and failure handling.

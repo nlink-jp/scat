@@ -24,6 +24,10 @@ scat profile set channel C0123456789
 
 [Slack setup and scopes](docs/en/SLACK_SETUP.md) · [Build and test](docs/en/BUILD.md)
 
+Run `make e2e` against a dedicated Slack channel before declaring live behavior verified.
+It builds the CLI and checks real posts, threads, streams, file round trips and export.
+See [live E2E setup](docs/en/BUILD.md#live-slack-e2e); missing configuration fails the run.
+
 Configuration is `~/.config/scat/config.json`. New directories use 0700 and
 credential files use 0600. Existing broad file permissions produce a warning.
 The default profile starts without credentials; it cannot silently post anywhere.

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -301,5 +302,79 @@ func TestDownloadCanceledAtClosePreservesDestination(t *testing.T) {
 	b, _ := os.ReadFile(path)
 	if string(b) != "old" {
 		t.Fatal("canceled download replaced destination")
+	}
+}
+
+// Real Slack serves externally uploaded HTML/JSON as text/plain metadata plus
+// application/force-download and Content-Disposition: attachment. Preserve the
+// bytes without allowing login pages, mismatched identities or foreign hosts.
+func TestDownloadSlackForcedAttachment(t *testing.T) {
+	for _, body := range []string{"<!doctype html><html><body>report</body></html>", `{"ok":false,"error":"fixture_content"}`} {
+		for _, mode := range []string{"valid", "large", "wrong-name", "no-disposition", "no-size", "wrong-size", "login", "foreign", "wrong-type"} {
+			t.Run(fmt.Sprintf("%s/%t", mode, strings.HasPrefix(body, "<")), func(t *testing.T) {
+				data := body
+				if mode == "large" {
+					data += strings.Repeat(" ", 8192)
+				}
+				if mode == "login" {
+					data = "<!doctype html><html>Sign in to Slack</html>"
+				}
+				size := int64(len(data))
+				if mode == "wrong-size" {
+					size++
+				}
+				if mode == "no-size" {
+					size = 0
+				}
+				dir := t.TempDir()
+				target := filepath.Join(dir, "F1_fixture.txt")
+				if err := os.WriteFile(target, []byte("previous"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				c := client(t, func(r *http.Request) (*http.Response, error) {
+					if r.URL.Path == "/api/auth.test" {
+						return authResponse(r), nil
+					}
+					if r.URL.Path == "/start" {
+						res := response(r, 302, "")
+						host := "other.slack.com"
+						if mode == "foreign" {
+							host = "outside.example"
+						}
+						res.Header.Set("Location", "https://"+host+"/file")
+						return res, nil
+					}
+					if mode == "foreign" && r.Header.Get("Authorization") != "" {
+						t.Fatal("credential leaked")
+					}
+					res := response(r, 200, data)
+					res.Header.Set("Content-Type", "application/force-download")
+					res.Header.Set("Content-Disposition", `attachment; filename="fixture.txt"`)
+					if mode == "wrong-name" {
+						res.Header.Set("Content-Disposition", `attachment; filename="other.txt"`)
+					}
+					if mode == "no-disposition" {
+						res.Header.Del("Content-Disposition")
+					}
+					if mode == "wrong-type" {
+						res.Header.Set("Content-Type", "text/html")
+					}
+					return res, nil
+				})
+				c.maxFileSize = 16 << 10
+				path, err := c.Download(context.Background(), File{ID: "F1", Name: "fixture.txt", Mimetype: "text/plain", Size: size, URL: "https://files.slack.com/start"}, dir)
+				got, readErr := os.ReadFile(target)
+				if readErr != nil {
+					t.Fatal(readErr)
+				}
+				if mode == "valid" || mode == "large" {
+					if err != nil || path != target || string(got) != data {
+						t.Fatalf("valid attachment rejected: %v", err)
+					}
+				} else if err == nil || path != "" || string(got) != "previous" {
+					t.Fatalf("untrusted response accepted: %v", err)
+				}
+			})
+		}
 	}
 }

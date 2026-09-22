@@ -27,7 +27,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transport/command tests and make fmt / make vulncheck targets.
 
 
+### Added
+
+- Add `make e2e`: uncached tests driving the built CLI against a dedicated real
+  Slack channel, including post/reply/stream, service-mode tee, binary/HTML/JSON
+  file round trips, export schema/parent bounds, invalid credentials and cleanup.
+  Missing live configuration fails instead of silently skipping validation.
+
 ### Fixed
+
+- Accept authenticated Slack forced-download attachments when their filename and
+  recorded size match, even when Slack labels HTML/JSON as `text/plain`. Real
+  round-trip tests exposed the MIME mismatch; login responses and untrusted or
+  mismatched attachments remain rejected.
 
 - Give cancellation priority over stream EOF and check it before committing a
   downloaded attachment; retain the previous destination on cancellation.
