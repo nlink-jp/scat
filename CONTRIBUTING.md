@@ -5,6 +5,11 @@ and [AGENTS.md](AGENTS.md). scat is a Slack-only bot CLI; scli owns human/user
 credentials. Read [ADR-0001](docs/en/adr/0001-slack-bot-renewal.md) before changing
 this boundary or the export contract.
 
+> **Outside contributions:** please start with an issue. Outside pull requests
+> are read as proposals, and wanted changes are re-implemented by the maintainers
+> (with credit) rather than merged as they are — see the organization's
+> [contribution guide](https://github.com/nlink-jp/.github/blob/main/CONTRIBUTING.md).
+
 1. For maintainer work in this umbrella submodule, check out `main` before
    changes, following the organization workflow. Do not turn the submodule into
    an ordinary directory. External contributors may submit pull requests;
