@@ -10,7 +10,7 @@
 
 ## セットアップ
 
-ビルドにはGo 1.25以降が必要です。公開済みバージョンは
+ビルドにはGo 1.27.4以降が必要です。公開済みバージョンは
 [Releases](https://github.com/nlink-jp/scat/releases)から取得できます。このcheckoutのビルド:
 
 ```sh

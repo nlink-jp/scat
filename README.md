@@ -11,7 +11,7 @@ and [migration](#migration-from-v1) for breaking interface changes.
 
 ## Setup
 
-Requires Go 1.25+ to build. Download published versions from
+Requires Go 1.27.4+ to build. Download published versions from
 [Releases](https://github.com/nlink-jp/scat/releases), or build this checkout:
 
 ```sh

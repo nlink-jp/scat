@@ -34,7 +34,9 @@ integration. Run the organization check after the pointer update.
   Missing settings fail, and cleanup deletes only this run's messages/files.
 - `make fmt`: format with project-local caches.
 - `make vulncheck`: reachable-vulnerability scan; needs govulncheck and network.
-- Go 1.25+ is required for `os.Root.Rename` (anchored attachment replacement).
+- Go 1.27.4+ is required (`go.mod`): the release is built with a toolchain whose
+  standard library carries the current security fixes. `os.Root.Rename` (anchored
+  attachment replacement) is what first needed 1.25.
 - `make build-all`: darwin/arm64, linux/amd64, linux/arm64, windows/amd64.
 - `make package`, `make verify-release`, `make brew`: packaging, public macOS
   signing/notarization gate, and Homebrew publication; follow the org checklist.
