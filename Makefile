@@ -22,7 +22,7 @@ _CACHE_INIT := $(shell mkdir -p "$(GOMODCACHE)" "$(GOCACHE)" "$(GOTMPDIR)")
 # darwin ships arm64 only (no amd64, no universal). linux/windows keep their matrix.
 PLATFORMS := darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: build build-all package verify-release test e2e lint check fmt vulncheck clean help
+.PHONY: build build-all package verify-release test e2e lint check fmt vulncheck clean help vuln
 
 ## build: Build binary for the current OS/Arch → dist/scat
 build:
@@ -39,12 +39,19 @@ build-all:
 	done
 	@scripts/codesign-darwin.sh $(OUTPUT_DIR)/$(BINARY)-darwin-arm64 "$(CODESIGN_IDENTITY)" "$(BINARY)"
 
+## vuln: known vulnerabilities in the modules and the standard library this
+## build uses (govulncheck). `package` depends on it, so a release cannot be
+## built past a finding. It needs the network, and its database changes under
+## an unchanged tree: a finding can appear without a commit.
+vuln:
+	govulncheck ./...
+
 ## package: Build all platforms, archive with version suffix (zip for
 ## darwin/windows, tar.gz for linux), bundle the canonical binary +
 ## README.md + LICENSE, and notarize the darwin build → dist/. Asset
 ## naming follows the org Release Archive Standard
 ## (scat-vX.Y.Z-<os>-<arch>.<ext>).
-package: build-all
+package: vuln build-all
 	@cd $(OUTPUT_DIR) && for p in $(PLATFORMS); do os=$${p%/*}; arch=$${p#*/}; \
 		ext=""; [ "$$os" = windows ] && ext=".exe"; \
 		stage=_pkg; rm -rf $$stage; mkdir -p $$stage; \
@@ -124,9 +131,8 @@ check: lint test
 fmt:
 	go fmt ./...
 
-## vulncheck: Check reachable vulnerabilities (requires govulncheck)
-vulncheck:
-	govulncheck ./...
+## vulncheck: the earlier name of `vuln`
+vulncheck: vuln
 
 ## clean: Remove dist/ and caches
 clean:

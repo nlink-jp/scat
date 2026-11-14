@@ -33,7 +33,9 @@ integration. Run the organization check after the pointer update.
   `SCAT_E2E_CONFIG` and `SCAT_E2E_CHANNEL` for a dedicated bot/test channel.
   Missing settings fail, and cleanup deletes only this run's messages/files.
 - `make fmt`: format with project-local caches.
-- `make vulncheck`: reachable-vulnerability scan; needs govulncheck and network.
+- `make vuln`: reachable-vulnerability scan (govulncheck; needs the network).
+  `make package` runs it first and stops on a finding. `make vulncheck` is
+  its earlier name and still works.
 - Go 1.27.4+ is required (`go.mod`): the release is built with a toolchain whose
   standard library carries the current security fixes. `os.Root.Rename` (anchored
   attachment replacement) is what first needed 1.25.
